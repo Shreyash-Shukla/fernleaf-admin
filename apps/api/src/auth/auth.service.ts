@@ -26,6 +26,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    if (!user.active) {
+      throw new UnauthorizedException('Account is deactivated');
+    }
+
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) {
       throw new UnauthorizedException('Invalid email or password');
@@ -40,10 +44,14 @@ export class AuthService {
     return {
       token,
       user: {
+        id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role.key,
       },
+      role: user.role.key,
+      permissions: user.role.permissions,
+      landingPath: user.role.landingPath,
+      dashboardKey: user.role.dashboardKey,
     };
   }
 
@@ -62,14 +70,20 @@ export class AuthService {
         include: { role: true },
       });
 
-      if (!user) {
-        throw new UnauthorizedException('User not found');
+      if (!user || !user.active) {
+        throw new UnauthorizedException('User not found or inactive');
       }
 
       return {
-        email: user.email,
-        name: user.name,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        },
         role: user.role.key,
+        permissions: user.role.permissions,
+        landingPath: user.role.landingPath,
+        dashboardKey: user.role.dashboardKey,
       };
     } catch {
       throw new UnauthorizedException('Invalid or expired authentication token');

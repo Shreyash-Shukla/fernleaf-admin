@@ -7,7 +7,8 @@
     "build": "pnpm -r run build",
     "lint": "pnpm -r run lint",
     "typecheck": "pnpm -r run typecheck",
-    "seed": "pnpm --filter api seed"
+    "seed": "pnpm --filter api seed",
+    "test": "pnpm -r run test"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

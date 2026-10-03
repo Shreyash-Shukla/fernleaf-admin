@@ -5,10 +5,12 @@ import { AuthService } from './auth.service';
 
 @Module({
   imports: [
-    JwtModule.register({}),
+    JwtModule.register({
+      global: true,
+    }),
   ],
   controllers: [AuthController],
   providers: [AuthService],
-  exports: [AuthService],
+  exports: [AuthService, JwtModule],
 })
 export class AuthModule {}
