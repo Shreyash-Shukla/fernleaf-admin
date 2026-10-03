@@ -11,6 +11,8 @@ import { MetaModule } from './meta/meta.module';
 import { CatalogueModule } from './catalogue/catalogue.module';
 import { PricingModule } from './pricing/pricing.module';
 import { MenuModule } from './menu/menu.module';
+import { CompaniesModule } from './companies/companies.module';
+import { EmployeesModule } from './employees/employees.module';
 import { SeedService } from './seed.service';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
@@ -29,6 +31,8 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     CatalogueModule,
     PricingModule,
     MenuModule,
+    CompaniesModule,
+    EmployeesModule,
   ],
   providers: [
     SeedService,

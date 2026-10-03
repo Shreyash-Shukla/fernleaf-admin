@@ -38,4 +38,8 @@ export class DomainError extends HttpException {
   static conflict(code: string = ERRORS.CONFLICT, message?: string, details?: any): DomainError {
     return new DomainError(code, HttpStatus.CONFLICT, message || 'Conflict', undefined, details);
   }
+
+  static unprocessable(code: string, message?: string, fieldErrors?: Record<string, string>, details?: any): DomainError {
+    return new DomainError(code, HttpStatus.UNPROCESSABLE_ENTITY, message, fieldErrors, details);
+  }
 }
