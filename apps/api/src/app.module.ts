@@ -8,6 +8,9 @@ import { KitchenHolidaysModule } from './kitchen-holidays/kitchen-holidays.modul
 import { ReferenceDataModule } from './reference-data/reference-data.module';
 import { StaffModule } from './staff/staff.module';
 import { MetaModule } from './meta/meta.module';
+import { CatalogueModule } from './catalogue/catalogue.module';
+import { PricingModule } from './pricing/pricing.module';
+import { MenuModule } from './menu/menu.module';
 import { SeedService } from './seed.service';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
@@ -23,6 +26,9 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     ReferenceDataModule,
     StaffModule,
     MetaModule,
+    CatalogueModule,
+    PricingModule,
+    MenuModule,
   ],
   providers: [
     SeedService,
