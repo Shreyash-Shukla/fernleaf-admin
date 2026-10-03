@@ -1,0 +1,16 @@
+{
+  "name": "heizen-monorepo",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -p \"[{name}]\" -n \"api,web\" -c \"cyan.bold,magenta.bold\" \"pnpm --filter api dev\" \"pnpm --filter web dev\"",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck",
+    "seed": "pnpm --filter api seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}
