@@ -1,0 +1,66 @@
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export function formatCents(cents: number | null | undefined): string {
+  if (cents === null || cents === undefined) return '$0.00';
+  const sign = cents < 0 ? '-' : '';
+  const abs = Math.abs(cents);
+  const dollars = Math.floor(abs / 100);
+  const remainder = abs % 100;
+  return `${sign}$${dollars}.${String(remainder).padStart(2, '0')}`;
+}
+
+export function parseMoneyToCents(input: string | number): number {
+  if (typeof input === 'number') {
+    return Math.round(input * 100);
+  }
+  const cleaned = input.replace(/[$,\s]/g, '');
+  const num = Number(cleaned);
+  if (isNaN(num)) return 0;
+  return Math.round(num * 100);
+}
+
+export function formatMinutesToTime(minutes: number | null | undefined): string {
+  if (minutes === null || minutes === undefined) return '--:--';
+  const mins = Math.max(0, Math.min(1439, minutes));
+  const hours = Math.floor(mins / 60);
+  const m = mins % 60;
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 === 0 ? 12 : hours % 12;
+  return `${displayHours}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+export function timeStringToMinutes(timeStr: string): number {
+  if (!timeStr) return 720; // default 12:00
+  const [hStr, mStr] = timeStr.split(':');
+  const h = parseInt(hStr || '12', 10);
+  const m = parseInt(mStr || '0', 10);
+  return h * 60 + m;
+}
+
+export function minutesToTimeString(minutes: number | null | undefined): string {
+  if (minutes === null || minutes === undefined) return '12:00';
+  const mins = Math.max(0, Math.min(1439, minutes));
+  const hours = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(hours).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+export function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  // dateStr is 'YYYY-MM-DD' or ISO string
+  const clean = dateStr.slice(0, 10);
+  const [year, month, day] = clean.split('-');
+  if (!year || !month || !day) return dateStr;
+  const d = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
+  return d.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}

@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
-  title: 'Heizen Monorepo',
-  description: 'Minimal monorepo hello-world with NestJS, Next.js, and Prisma',
+  title: 'Fernleaf Kitchen Operations',
+  description: 'Commercial kitchen management, prep scheduling, and corporate meal logistics',
 };
 
 export default function RootLayout({
@@ -12,9 +13,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased flex flex-col justify-center items-center p-4">
-        {children}
+    <html lang="en" className="dark">
+      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
