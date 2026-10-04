@@ -10,10 +10,11 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('[pnpm seed] Starting database seed...');
-  await runSeed(prisma);
+  const force = process.argv.includes('--force') || true; // pnpm seed defaults to fresh full seed
+  console.log(`[pnpm seed] Starting database seed (force=${force})...`);
+  await runSeed(prisma, { force });
   await prisma.$disconnect();
-  console.log('[pnpm seed] Finished!');
+  console.log('[pnpm seed] Finished successfully!');
 }
 
 main().catch((err) => {

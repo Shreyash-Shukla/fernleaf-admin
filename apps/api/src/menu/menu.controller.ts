@@ -26,4 +26,11 @@ export class MenuController {
     }
     return this.menuService.resolveDefault(slug);
   }
+
+  @Get('categories')
+  @RequireAnyPermissions(PERMISSIONS.CATALOGUE_READ, PERMISSIONS.ORDERS_READ)
+  async listCategories(@Query('includeSecret') includeSecret?: string) {
+    const withSecret = includeSecret === 'true' || includeSecret === '1' || includeSecret === undefined;
+    return this.menuService.listCategories({ includeSecret: withSecret });
+  }
 }

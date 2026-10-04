@@ -17,7 +17,7 @@ import { OrdersModule } from './orders/orders.module';
 import { KitchenModule } from './kitchen/kitchen.module';
 import { DispatchModule } from './dispatch/dispatch.module';
 import { BillingModule } from './billing/billing.module';
-import { SeedService } from './seed.service';
+import { AdminModule } from './admin/admin.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -41,9 +41,9 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     KitchenModule,
     DispatchModule,
     BillingModule,
+    AdminModule,
   ],
   providers: [
-    SeedService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
