@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { CalculationInfo } from '@/components/dashboard/calculation-info';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { useAuth } from '@/lib/auth-context';
 import {
   ShoppingBag,
   ChefHat,
@@ -30,9 +31,24 @@ import {
   ExternalLink,
 } from 'lucide-react';
 
+const roleTitles: Record<'admin' | 'kitchen' | 'dispatch' | 'driver', string> = {
+  admin: 'Operations Hub & Executive Dashboard',
+  kitchen: 'Kitchen Lead Dashboard',
+  dispatch: 'Dispatch Logistics Dashboard',
+  driver: 'Driver Field Run Dashboard',
+};
+
 export default function DashboardPage() {
   const queryClient = useQueryClient();
+  const { user, role, can } = useAuth();
+  const isSuperAdmin = role === 'admin';
   const [activeRoleView, setActiveRoleView] = useState<'admin' | 'kitchen' | 'dispatch' | 'driver'>('admin');
+
+  // Strict role segregation: non-admins can ONLY view their own role's dashboard.
+  // Superadmins can inspect any role's operational view.
+  const currentView: 'admin' | 'kitchen' | 'dispatch' | 'driver' = isSuperAdmin
+    ? activeRoleView
+    : (role as 'kitchen' | 'dispatch' | 'driver') || 'driver';
 
   // 1. Meta context
   const { data: meta } = useQuery<{
@@ -62,6 +78,7 @@ export default function DashboardPage() {
         orders: [],
         total: 0,
       })),
+    enabled: currentView === 'admin' || can('orders:read'),
   });
 
   // 3. Orders next 7 days for pipeline value
@@ -82,7 +99,7 @@ export default function DashboardPage() {
         orders: [],
         total: 0,
       })),
-    enabled: !!nextWeekDate,
+    enabled: !!nextWeekDate && currentView === 'admin',
   });
 
   // 4. Kitchen board for today
@@ -98,6 +115,7 @@ export default function DashboardPage() {
         orders: [],
         cookTotals: [],
       })),
+    enabled: currentView === 'admin' || currentView === 'kitchen' || can('kitchen:read'),
   });
 
   // 5. Billing unbilled summary
@@ -108,6 +126,7 @@ export default function DashboardPage() {
         summary: { totalUnbilledCents: 0 },
         companies: [],
       })),
+    enabled: currentView === 'admin' && (can('*') || can('billing:read')),
   });
 
   // 6. Settings for cut-off info
@@ -119,6 +138,7 @@ export default function DashboardPage() {
         cutoffTime: '16:00',
         cutoffHoldDates: [],
       })),
+    enabled: currentView === 'admin',
   });
 
   // 7. Live Next Cut-off Window
@@ -126,6 +146,7 @@ export default function DashboardPage() {
     queryKey: ['cutoff', 'next'],
     queryFn: () => fetchApi('/cutoff/next').catch(() => null),
     refetchInterval: 30000,
+    enabled: currentView === 'admin',
   });
 
   // 8. Dispatch board for today (for role switcher)
@@ -136,9 +157,10 @@ export default function DashboardPage() {
         drops: [],
         summary: { totalDrops: 0, stageCounts: {} },
       })),
+    enabled: currentView === 'admin' || currentView === 'dispatch' || can('dispatch:read'),
   });
 
-  // 9. Driver drops for today (driver@test.com preview)
+  // 9. Driver drops for today (driver view)
   const { data: driverData } = useQuery<any>({
     queryKey: ['driver', 'drops', today],
     queryFn: () =>
@@ -146,6 +168,7 @@ export default function DashboardPage() {
         drops: [],
         summary: { totalDrops: 0, deliveredDrops: 0, remainingDrops: 0 },
       })),
+    enabled: currentView === 'admin' || currentView === 'driver' || can('deliveries:read_own'),
   });
 
   // Dynamic live countdown string for next cut-off
@@ -251,7 +274,7 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <span>Operations Hub &amp; Role Dashboards</span>
+              <span>{roleTitles[currentView]}</span>
             </h1>
             <p className="text-xs text-slate-400 mt-1">
               Live metrics for <span className="text-emerald-400 font-medium">{formatDate(today)}</span> in{' '}
@@ -260,74 +283,84 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => reseedMutation.mutate()}
-              loading={reseedMutation.isPending}
-              className="text-xs"
-              title="Reseeds date-relative DEMO orders without touching staff data"
-            >
-              <RefreshCw className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
-              Reseed Demo
-            </Button>
-
-            <Link href="/orders/new">
-              <Button size="sm" className="text-xs">
-                <PlusCircle className="w-3.5 h-3.5 mr-1.5" />
-                New Order
+            {isSuperAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => reseedMutation.mutate()}
+                loading={reseedMutation.isPending}
+                className="text-xs"
+                title="Reseeds date-relative DEMO orders without touching staff data"
+              >
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+                Reseed Demo
               </Button>
-            </Link>
+            )}
+
+            {can('orders:write') && (
+              <Link href="/orders/new">
+                <Button size="sm" className="text-xs">
+                  <PlusCircle className="w-3.5 h-3.5 mr-1.5" />
+                  New Order
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
 
-        {/* Role Dashboard Selector */}
-        <div className="flex items-center gap-2 p-1.5 bg-slate-900/90 rounded-xl border border-slate-800 overflow-x-auto">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-2">
-            View Role:
-          </span>
-          <button
-            onClick={() => setActiveRoleView('admin')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeRoleView === 'admin'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+        {/* Role Dashboard Selector — Strictly visible to Admin supervisor */}
+        {isSuperAdmin && (
+          <div className="flex items-center gap-2 p-1.5 bg-slate-900/90 rounded-xl border border-slate-800 overflow-x-auto">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-2">
+              Supervisor View:
+            </span>
+            <button
+              onClick={() => setActiveRoleView('admin')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeRoleView === 'admin'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
-          >
-            Admin Executive
-          </button>
-          <button
-            onClick={() => setActiveRoleView('kitchen')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeRoleView === 'kitchen'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            >
+              Admin Executive
+            </button>
+            <button
+              onClick={() => setActiveRoleView('kitchen')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeRoleView === 'kitchen'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
-          >
-            Kitchen Lead (6 AM)
-          </button>
-          <button
-            onClick={() => setActiveRoleView('dispatch')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeRoleView === 'dispatch'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            >
+              Kitchen Lead (6 AM)
+            </button>
+            <button
+              onClick={() => setActiveRoleView('dispatch')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeRoleView === 'dispatch'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
-          >
-            Dispatch Coordinator
-          </button>
-          <button
-            onClick={() => setActiveRoleView('driver')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeRoleView === 'driver'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            >
+              Dispatch Coordinator
+            </button>
+            <button
+              onClick={() => setActiveRoleView('driver')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeRoleView === 'driver'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
-          >
-            Driver Field Run
-          </button>
-        </div>
+            >
+              Driver Field Run
+            </button>
+          </div>
+        )}
 
         {/* ─────────────────────────────────────────────────────────────
             1. ADMIN EXECUTIVE DASHBOARD
         ───────────────────────────────────────────────────────────── */}
-        {activeRoleView === 'admin' && (
+        {currentView === 'admin' && (
           <div className="space-y-6">
             {/* 5 Core Metric Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
@@ -605,7 +638,7 @@ export default function DashboardPage() {
         {/* ─────────────────────────────────────────────────────────────
             2. KITCHEN LEAD DASHBOARD VIEW
         ───────────────────────────────────────────────────────────── */}
-        {activeRoleView === 'kitchen' && (
+        {currentView === 'kitchen' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -759,7 +792,7 @@ export default function DashboardPage() {
         {/* ─────────────────────────────────────────────────────────────
             3. DISPATCH DASHBOARD VIEW
         ───────────────────────────────────────────────────────────── */}
-        {activeRoleView === 'dispatch' && (
+        {currentView === 'dispatch' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -910,13 +943,13 @@ export default function DashboardPage() {
         {/* ─────────────────────────────────────────────────────────────
             4. DRIVER DASHBOARD VIEW
         ───────────────────────────────────────────────────────────── */}
-        {activeRoleView === 'driver' && (
+        {currentView === 'driver' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                   <Truck className="w-5 h-5 text-amber-400" />
-                  Driver Field Run Dashboard (driver@test.com)
+                  Driver Field Run Dashboard ({user?.name || user?.email || 'Field Driver'})
                 </h2>
                 <p className="text-xs text-slate-400">
                   Mobile-first delivery management scoped strictly to assigned drops for today.
