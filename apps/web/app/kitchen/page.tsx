@@ -24,6 +24,7 @@ import {
   Sparkles,
   Layers,
 } from 'lucide-react';
+import { CalculationInfo } from '@/components/dashboard/calculation-info';
 
 export default function KitchenBoardPage() {
   const queryClient = useQueryClient();
@@ -96,6 +97,19 @@ export default function KitchenBoardPage() {
   const stations = boardData?.stations || [];
   const cookTotals = boardData?.cookTotals || [];
 
+  const totalUnits = boardData?.totalUnits || 0;
+  const doneUnits = boardData?.doneUnits || 0;
+  const startedUnits = cookTotals.reduce((sum: number, c: any) => sum + (c.startedQty || 0), 0);
+  const notStartedUnits = Math.max(0, totalUnits - (doneUnits + startedUnits));
+
+  const incompleteOrders = orders.filter((o: any) => !o.kitchenReadyAt && o.plannedKitchenReadyAt);
+  const nextDeadlineOrder = incompleteOrders.length > 0
+    ? [...incompleteOrders].sort(
+        (a: any, b: any) =>
+          new Date(a.plannedKitchenReadyAt).getTime() - new Date(b.plannedKitchenReadyAt).getTime()
+      )[0]
+    : null;
+
   return (
     <AppShell requiredPermission="kitchen:read">
       <div className="space-y-6">
@@ -135,49 +149,116 @@ export default function KitchenBoardPage() {
         </div>
 
         {/* Operational Status Counts */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card className="p-3 bg-slate-900/60 border-slate-800">
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              Total Prep Units
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Card 1: Meals to cook */}
+          <Card className="p-3.5 bg-slate-900/60 border-slate-800">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Meals to Cook
+              </span>
+              <CalculationInfo
+                title="Meals to Cook (Not Started / In Progress / Done)"
+                role="Kitchen"
+                whyNeeded="Tells kitchen lead total meals required today and exact completion status across stations."
+                formula="Total = SUM(OrderLineCombination.quantity) on CONFIRMED orders. Done = doneAt != null. In Progress = startedAt != null AND doneAt == null. Not Started = startedAt == null."
+                whichOrdersCount="Only CONFIRMED orders scheduled for today."
+                dateGrouping="deliveryDate = today in kitchen timezone."
+                exclusionsAndMissing="Cancelled or draft orders are completely excluded from prep totals."
+              />
             </div>
             <div className="text-2xl font-bold text-white mt-1">
-              {boardData?.totalUnits || 0}
+              {totalUnits}
+            </div>
+            <div className="flex flex-wrap items-center gap-1 mt-2">
+              <Badge variant="secondary" className="text-[10px] py-0 px-1.5">{notStartedUnits} Not Started</Badge>
+              <Badge variant="warning" className="text-[10px] py-0 px-1.5">{startedUnits} In Progress</Badge>
+              <Badge variant="default" className="text-[10px] py-0 px-1.5">{doneUnits} Done</Badge>
             </div>
           </Card>
 
-          <Card className="p-3 bg-slate-900/60 border-slate-800">
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              Units Done
+          {/* Card 2: By station (remaining) */}
+          <Card className="p-3.5 bg-slate-900/60 border-slate-800">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                By Station (Remaining)
+              </span>
+              <CalculationInfo
+                title="Meals Remaining by Station"
+                role="Kitchen"
+                whyNeeded="Allows station leads (Hot, Cold, Bakery) to immediately see their individual backlog and deploy staff to bottlenecks."
+                formula="Remaining per station = SUM(unit.quantity) WHERE Dish.stationId = station.id AND unit.doneAt IS NULL"
+                whichOrdersCount="Distinct dish prep units grouped by live dish station routing."
+                dateGrouping="deliveryDate = today."
+                exclusionsAndMissing="Dishes with no station are grouped as 'Unassigned Station' so no meal is ever lost."
+              />
             </div>
             <div className="text-2xl font-bold text-emerald-400 mt-1">
-              {boardData?.doneUnits || 0}
+              {Math.max(0, totalUnits - doneUnits)} <span className="text-xs font-normal text-slate-400">remaining</span>
+            </div>
+            <div className="text-[11px] text-slate-300 mt-2 truncate">
+              {stations.slice(0, 2).map((s: any) => `${s.name}: ${s.remainingMeals ?? (s.totalMeals - s.doneMeals)}`).join(' · ') || 'All stations clear'}
             </div>
           </Card>
 
+          {/* Card 3: Late / at-risk */}
           <Card
-            className={`p-3 bg-slate-900/60 ${
+            className={`p-3.5 bg-slate-900/60 ${
               boardData?.lateOrdersCount > 0 ? 'border-rose-500/50 bg-rose-950/20' : 'border-slate-800'
             }`}
           >
-            <div className="text-[11px] font-semibold text-rose-400 uppercase tracking-wider flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3" /> Late Orders
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-rose-400 uppercase tracking-wider flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" /> Late &amp; At Risk
+              </span>
+              <CalculationInfo
+                title="Late and At-Risk Orders"
+                role="Kitchen"
+                whyNeeded="Identifies imminent service failures. Orders flagged here take highest priority in cooking queue."
+                formula="Late = now > plannedKitchenReadyAt AND kitchenReadyAt IS NULL. At-Risk = now within 60 min of deadline AND has unstarted units."
+                whichOrdersCount="Confirmed orders with uncompleted prep units."
+                dateGrouping="deliveryDate = today."
+                exclusionsAndMissing="Delivered or fully kitchen-ready orders are never marked late or at-risk."
+              />
             </div>
             <div className="text-2xl font-bold text-rose-400 mt-1">
               {boardData?.lateOrdersCount || 0}
             </div>
+            <div className="flex items-center gap-2 mt-2">
+              <Badge variant={boardData?.lateOrdersCount > 0 ? 'destructive' : 'default'} className="text-[10px] py-0 px-1.5">
+                {boardData?.lateOrdersCount || 0} Late
+              </Badge>
+              <Badge variant={boardData?.atRiskOrdersCount > 0 ? 'warning' : 'secondary'} className="text-[10px] py-0 px-1.5">
+                {boardData?.atRiskOrdersCount || 0} At Risk
+              </Badge>
+            </div>
           </Card>
 
-          <Card
-            className={`p-3 bg-slate-900/60 ${
-              boardData?.atRiskOrdersCount > 0 ? 'border-amber-500/50 bg-amber-950/20' : 'border-slate-800'
-            }`}
-          >
-            <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1">
-              <Clock className="w-3 h-3" /> At Risk (&lt;60m)
+          {/* Card 4: Next deadline */}
+          <Card className="p-3.5 bg-slate-900/60 border-slate-800">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <Clock className="w-3 h-3 text-sky-400" /> Next Deadline
+              </span>
+              <CalculationInfo
+                title="Next Cooking Deadline"
+                role="Kitchen"
+                whyNeeded="Tells the kitchen staff the earliest planned kitchen-ready time for an active order so they prioritize right now."
+                formula="MIN(Order.plannedKitchenReadyAt) WHERE Order.kitchenReadyAt IS NULL AND Order.deliveryDate = today"
+                whichOrdersCount="Confirmed orders for today that are not yet marked kitchen-ready."
+                dateGrouping="deliveryDate = today."
+                exclusionsAndMissing="Completed orders are excluded; if all orders are done, reports 'All orders complete'."
+              />
             </div>
-            <div className="text-2xl font-bold text-amber-400 mt-1">
-              {boardData?.atRiskOrdersCount || 0}
+            <div className="text-2xl font-bold text-white mt-1">
+              {nextDeadlineOrder
+                ? formatMinutesToTime(nextDeadlineOrder.deliveryTimeMin - (nextDeadlineOrder.leadMinutes ?? 60) - 30)
+                : 'All Done!'}
             </div>
+            <p className="text-[11px] text-slate-400 mt-2 truncate">
+              {nextDeadlineOrder
+                ? `Order #${nextDeadlineOrder.id?.slice(0, 6)} (${nextDeadlineOrder.company?.name})`
+                : 'No pending prep deadlines today'}
+            </p>
           </Card>
         </div>
 

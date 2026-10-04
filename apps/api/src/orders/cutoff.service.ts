@@ -279,6 +279,77 @@ export class CutoffService implements OnModuleDestroy {
   }
 
   /**
+   * Get the next upcoming cut-off window:
+   * Finds the earliest upcoming delivery date whose cut-off has not passed yet,
+   * along with counts of DRAFT and PLACED orders for that delivery date.
+   */
+  async getNextWindow() {
+    const appSettings = await this.settings.getAll();
+    const kitchenHolidays = await this.prisma.kitchenHoliday.findMany();
+    const kitchenHolidayDates = new Set(kitchenHolidays.map((h) => dbDateToString(h.date)));
+    const tz = appSettings.timezone || 'Asia/Kolkata';
+    const now = DateTime.now().setZone(tz);
+    const today = now.toISODate()!;
+
+    const cutoffSettings: CutoffSettings = {
+      cutoffDays: appSettings.cutoffDays,
+      cutoffTime: appSettings.cutoffTime,
+      kitchenWorkingDays: appSettings.kitchenWorkingDays,
+      kitchenHolidays: kitchenHolidayDates,
+      timezone: tz,
+    };
+
+    let nextDeliveryDate: string | null = null;
+    let nextCutoff: DateTime | null = null;
+
+    for (let i = 0; i <= 14; i++) {
+      const candidateDate = addDays(today, i);
+      const cutoff = cutoffAt(candidateDate, cutoffSettings);
+      if (cutoff > now) {
+        nextDeliveryDate = candidateDate;
+        nextCutoff = cutoff;
+        break;
+      }
+    }
+
+    if (!nextDeliveryDate || !nextCutoff) {
+      nextDeliveryDate = addDays(today, 1);
+      nextCutoff = cutoffAt(nextDeliveryDate, cutoffSettings);
+    }
+
+    const deliveryDbDate = stringToDbDate(nextDeliveryDate);
+
+    const [draftCount, placedCount] = await Promise.all([
+      this.prisma.order.count({
+        where: {
+          deliveryDate: deliveryDbDate,
+          status: 'DRAFT',
+        },
+      }),
+      this.prisma.order.count({
+        where: {
+          deliveryDate: deliveryDbDate,
+          status: 'PLACED',
+        },
+      }),
+    ]);
+
+    const remainingMs = Math.max(0, nextCutoff.diff(now).as('milliseconds'));
+
+    return {
+      deliveryDate: nextDeliveryDate,
+      cutoffIso: nextCutoff.toISO(),
+      cutoffFormatted: nextCutoff.toFormat('dd LLL yyyy, HH:mm') + ` (${tz})`,
+      remainingMs,
+      draftCount,
+      placedCount,
+      cutoffDays: appSettings.cutoffDays,
+      cutoffTime: appSettings.cutoffTime,
+      holdDatesCount: Array.isArray(appSettings.cutoffHoldDates) ? appSettings.cutoffHoldDates.length : 0,
+    };
+  }
+
+  /**
    * Start the sweep cron: runs every 60 seconds.
    */
   private startSweepCron() {

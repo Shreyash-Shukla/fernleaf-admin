@@ -24,6 +24,7 @@ import {
   FileText,
   RefreshCw,
 } from 'lucide-react';
+import { CalculationInfo } from '@/components/dashboard/calculation-info';
 
 export default function DriverViewPage() {
   const queryClient = useQueryClient();
@@ -98,6 +99,12 @@ export default function DriverViewPage() {
 
   const summary = data?.summary;
   const drops = data?.drops || [];
+  const nextDrop = drops.find((d: any) => d.stage !== 'DELIVERED');
+
+  const totalDrops = summary?.totalDrops || drops.length;
+  const deliveredDrops = summary?.deliveredDrops || drops.filter((d: any) => d.stage === 'DELIVERED').length;
+  const remainingDrops = summary?.remainingDrops ?? (totalDrops - deliveredDrops);
+  const percentComplete = totalDrops > 0 ? Math.round((deliveredDrops / totalDrops) * 100) : 0;
 
   return (
     <AppShell requiredPermission="deliveries:read_own">
@@ -124,19 +131,83 @@ export default function DriverViewPage() {
           </Button>
         </div>
 
-        {/* Driver Summary Progress Pill */}
-        <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-          <div>
-            <div className="text-slate-400 text-[11px] font-semibold uppercase">Today&apos;s Run</div>
-            <div className="text-base font-bold text-white mt-0.5">
-              {summary?.deliveredDrops || 0} / {summary?.totalDrops || 0}{' '}
-              <span className="text-xs font-normal text-slate-400">Completed</span>
+        {/* 2 Driver Dashboard Cards */}
+        <div className="space-y-3">
+          {/* Card 1: My Drops Today */}
+          <Card className="p-4 bg-slate-900/90 border-slate-800">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                My Drops Today
+              </span>
+              <CalculationInfo
+                title="My Drops Today (Total / Delivered / Remaining)"
+                role="Driver"
+                whyNeeded="Driver needs an unambiguous progress counter of remaining deliveries on their daily shift."
+                formula="Total = COUNT(Drop) WHERE driverId = me AND deliveryDate = today. Delivered = stage == 'DELIVERED'. Remaining = Total - Delivered."
+                whichOrdersCount="Strictly drops where driverId matches current logged-in driver user ID."
+                dateGrouping="deliveryDate = today in kitchen timezone."
+                exclusionsAndMissing="Drops assigned to other drivers or unassigned drops are invisible to this driver."
+              />
             </div>
-          </div>
+            <div className="flex items-baseline justify-between mt-2">
+              <div className="text-2xl font-bold text-white">
+                {deliveredDrops} / {totalDrops}{' '}
+                <span className="text-xs font-normal text-slate-400">drops completed</span>
+              </div>
+              <Badge variant={remainingDrops === 0 ? 'default' : 'warning'} className="text-xs">
+                {remainingDrops} Remaining
+              </Badge>
+            </div>
+            {/* Progress Bar */}
+            <div className="w-full bg-slate-800 rounded-full h-2 mt-3 overflow-hidden">
+              <div
+                className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${percentComplete}%` }}
+              />
+            </div>
+          </Card>
 
-          <Badge variant={summary?.remainingDrops === 0 ? 'default' : 'warning'} className="text-xs px-3 py-1">
-            {summary?.remainingDrops || 0} Drops Remaining
-          </Badge>
+          {/* Card 2: Next Drop Details */}
+          {nextDrop && (
+            <Card className="p-4 bg-gradient-to-r from-slate-900 to-emerald-950/20 border-emerald-500/40 shadow-sm">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Navigation className="w-3.5 h-3.5" /> Next Destination
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="warning" className="text-xs font-bold">
+                    {nextDrop.deliveryTime}
+                  </Badge>
+                  <CalculationInfo
+                    title="Next Drop Details"
+                    role="Driver"
+                    whyNeeded="Shows the driver the immediate destination address, contact instructions, and deadline for the very next stop."
+                    formula="FIRST(Drop) WHERE driverId = me AND deliveryDate = today AND stage != 'DELIVERED' ORDER BY deliveryTimeMin ASC"
+                    whichOrdersCount="The single earliest upcoming undelivered drop assigned to this driver."
+                    dateGrouping="deliveryDate = today."
+                    exclusionsAndMissing="Delivered drops are excluded."
+                  />
+                </div>
+              </div>
+
+              <div className="mt-2.5 space-y-1.5 text-xs">
+                <div className="font-bold text-white text-base">
+                  {nextDrop.company?.name}
+                </div>
+                <div className="text-slate-300 flex items-start gap-1 text-[11px]">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                  <span>
+                    {nextDrop.address?.line1}, {nextDrop.address?.city} ({nextDrop.address?.postcode})
+                  </span>
+                </div>
+                {nextDrop.company?.driverNotes && (
+                  <div className="p-2 bg-amber-950/30 rounded border border-amber-900/40 text-[11px] text-amber-300">
+                    <span className="font-semibold">Note:</span> {nextDrop.company.driverNotes}
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Drops List (Phone-Friendly Stack) */}

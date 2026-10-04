@@ -24,6 +24,7 @@ import {
   Camera,
   FileText,
 } from 'lucide-react';
+import { CalculationInfo } from '@/components/dashboard/calculation-info';
 
 export default function DispatchBoardPage() {
   const queryClient = useQueryClient();
@@ -95,6 +96,11 @@ export default function DispatchBoardPage() {
   const summary = boardData?.summary;
   const drops = boardData?.drops || [];
 
+  const nextThreeDrops = drops
+    .filter((d: any) => d.stage !== 'DELIVERED')
+    .sort((a: any, b: any) => a.deliveryTimeMin - b.deliveryTimeMin)
+    .slice(0, 3);
+
   const filteredDrops = drops.filter((d: any) => {
     if (selectedStage === 'ALL') return true;
     return d.stage === selectedStage;
@@ -156,49 +162,128 @@ export default function DispatchBoardPage() {
         </div>
 
         {/* Operational Metrics Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card className="p-3 bg-slate-900/60 border-slate-800">
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              Total Drops Today
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Card 1: Drops Today by Stage */}
+          <Card className="p-3.5 bg-slate-900/60 border-slate-800">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Drops Today by Stage
+              </span>
+              <CalculationInfo
+                title="Drops Today by Stage"
+                role="Dispatch"
+                whyNeeded="Dispatcher needs complete visibility over the entire drop pipeline from kitchen preparation to final delivery."
+                formula="COUNT(Drop) GROUP BY Drop.stage WHERE deliveryDate = today. Drop = unique(deliveryDate, companyId, addressId, deliveryTimeMin)."
+                whichOrdersCount="All confirmed drops for today."
+                dateGrouping="deliveryDate = today in kitchen timezone."
+                exclusionsAndMissing="Drop stage is the minimum stage among all its active orders (all-or-nothing progression)."
+              />
             </div>
             <div className="text-2xl font-bold text-white mt-1">
               {summary?.totalDrops || 0}
             </div>
+            <div className="flex flex-wrap gap-1 mt-2">
+              <Badge variant="secondary" className="text-[10px] py-0 px-1">
+                {summary?.stageCounts?.PREPARING ?? 0} Prep
+              </Badge>
+              <Badge variant="warning" className="text-[10px] py-0 px-1">
+                {summary?.stageCounts?.KITCHEN_READY ?? 0} Kitchen
+              </Badge>
+              <Badge variant="info" className="text-[10px] py-0 px-1">
+                {summary?.stageCounts?.DISPATCH_READY ?? 0} Ready
+              </Badge>
+              <Badge variant="default" className="text-[10px] py-0 px-1">
+                {summary?.stageCounts?.DELIVERED ?? 0} Delivered
+              </Badge>
+            </div>
           </Card>
 
+          {/* Card 2: Needs a driver */}
           <Card
-            className={`p-3 bg-slate-900/60 ${
+            className={`p-3.5 bg-slate-900/60 ${
               summary?.unassignedCount > 0 ? 'border-amber-500/50 bg-amber-950/20' : 'border-slate-800'
             }`}
           >
-            <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1">
-              <User className="w-3 h-3" /> Unassigned Drops
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                <User className="w-3.5 h-3.5" /> Needs a Driver
+              </span>
+              <CalculationInfo
+                title="Needs a Driver (Unassigned Drops)"
+                role="Dispatch"
+                whyNeeded="Dispatcher must assign every drop to a courier before it can depart for delivery."
+                formula="COUNT(Drop) WHERE Drop.deliveryDate = today AND Drop.driverId IS NULL AND Drop.stage != 'DELIVERED'"
+                whichOrdersCount="Drops scheduled for today that lack a driver."
+                dateGrouping="deliveryDate = today."
+                exclusionsAndMissing="Delivered drops are excluded. Company default driver is pre-assigned where configured."
+              />
             </div>
             <div className="text-2xl font-bold text-amber-400 mt-1">
               {summary?.unassignedCount || 0}
             </div>
+            <p className="text-[11px] text-slate-400 mt-2">
+              {summary?.unassignedCount > 0 ? 'Requires driver assignment before departure' : 'All drops assigned to drivers'}
+            </p>
           </Card>
 
+          {/* Card 3: Behind schedule */}
           <Card
-            className={`p-3 bg-slate-900/60 ${
+            className={`p-3.5 bg-slate-900/60 ${
               summary?.behindScheduleCount > 0 ? 'border-rose-500/50 bg-rose-950/20' : 'border-slate-800'
             }`}
           >
-            <div className="text-[11px] font-semibold text-rose-400 uppercase tracking-wider flex items-center gap-1">
-              <Clock className="w-3 h-3" /> Behind Schedule
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-rose-400 uppercase tracking-wider flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" /> Behind Schedule
+              </span>
+              <CalculationInfo
+                title="Behind Schedule Drops"
+                role="Dispatch"
+                whyNeeded="Flags drops that have missed their planned dispatch departure window."
+                formula="COUNT(Drop) WHERE now > plannedDispatchReadyAt AND Drop.stage IN ('PREPARING', 'KITCHEN_READY')"
+                whichOrdersCount="Active drops today that should already have left the kitchen."
+                dateGrouping="deliveryDate = today."
+                exclusionsAndMissing="Once out for delivery or delivered, drops are evaluated against delivery deadline, not dispatch deadline."
+              />
             </div>
             <div className="text-2xl font-bold text-rose-400 mt-1">
               {summary?.behindScheduleCount || 0}
             </div>
+            <p className="text-[11px] text-slate-400 mt-2">
+              {summary?.behindScheduleCount > 0 ? 'Exceeded planned kitchen lead time' : 'All drops running on schedule'}
+            </p>
           </Card>
 
-          <Card className="p-3 bg-slate-900/60 border-slate-800">
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              Delivered Drops
+          {/* Card 4: Next 3 drops */}
+          <Card className="p-3.5 bg-slate-900/60 border-slate-800">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-sky-400" /> Next 3 Drops
+              </span>
+              <CalculationInfo
+                title="Next 3 Drops in Queue"
+                role="Dispatch"
+                whyNeeded="Gives the staging crew the exact sequence of upcoming drop deadlines to stage boxes and hand off to drivers."
+                formula="SELECT TOP 3 Drop ORDER BY deliveryTimeMin ASC WHERE deliveryDate = today AND stage != 'DELIVERED'"
+                whichOrdersCount="Next 3 upcoming undelivered drops."
+                dateGrouping="deliveryDate = today."
+                exclusionsAndMissing="Delivered drops are omitted."
+              />
             </div>
-            <div className="text-2xl font-bold text-emerald-400 mt-1">
-              {summary?.stageCounts?.DELIVERED || 0}
-            </div>
+            {nextThreeDrops.length > 0 ? (
+              <div className="space-y-1.5 mt-2 text-[11px]">
+                {nextThreeDrops.map((d: any) => (
+                  <div key={d.id} className="flex items-center justify-between">
+                    <span className="font-medium text-slate-200 truncate max-w-[130px]">
+                      {d.company?.name}
+                    </span>
+                    <span className="text-emerald-400 font-semibold">{d.deliveryTime}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 py-3">All drops delivered!</p>
+            )}
           </Card>
         </div>
 

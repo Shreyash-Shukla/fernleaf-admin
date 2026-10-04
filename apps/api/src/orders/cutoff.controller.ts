@@ -1,6 +1,4 @@
-// ─── Cut-off Controller ─────────────────────────────────────────
-
-import { Controller, Post, Body, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req } from '@nestjs/common';
 import { CutoffService } from './cutoff.service';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { PERMISSIONS, isValidDateString, ERRORS } from '@repo/shared';
@@ -9,6 +7,16 @@ import { DomainError } from '../common/domain-error';
 @Controller('cutoff')
 export class CutoffController {
   constructor(private readonly cutoffService: CutoffService) {}
+
+  /**
+   * GET /cutoff/next
+   * Next upcoming cut-off window with countdown and draft/placed order counts.
+   */
+  @Get('next')
+  @RequirePermissions(PERMISSIONS.ORDERS_READ)
+  async getNextWindow() {
+    return this.cutoffService.getNextWindow();
+  }
 
   /**
    * POST /cutoff/run
