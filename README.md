@@ -13,8 +13,8 @@
 
 ## 1. Live Deployment & Reviewer Credentials
 
-- **Live Frontend URL:** `https://fernleaf-admin.vercel.app` *(or custom Vercel domain)*
-- **Live API Backend URL:** `https://fernleaf-api.onrender.com`
+- **Live Frontend URL:** *(or custom Vercel domain)*
+- **Live API Backend URL:** 
 - **Database:** Hosted PostgreSQL on Neon (Serverless Postgres with Connection Pooling)
 
 ### Test Accounts (Mandatory Credentials)
