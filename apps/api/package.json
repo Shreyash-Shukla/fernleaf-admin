@@ -3,9 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "build": "nest build",
+    "build": "prisma generate && nest build",
     "start": "node dist/main",
-    "start:prod": "node dist/main",
+    "start:prod": "prisma migrate deploy && node dist/main",
     "dev": "nest start --watch",
     "lint": "echo api: lint passed",
     "typecheck": "tsc --noEmit",
