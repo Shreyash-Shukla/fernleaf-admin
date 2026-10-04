@@ -64,3 +64,27 @@ export function formatDate(dateStr: string | null | undefined): string {
     year: 'numeric',
   });
 }
+
+/**
+ * Resiliently extracts a list of items regardless of whether the API returns:
+ * - an array directly `[...]`
+ * - standard CRUD paginated `{ items: [...] }`
+ * - orders paginated `{ data: [...] }`
+ * - or entity-named arrays `{ orders: [...] }`, `{ companies: [...] }`, etc.
+ */
+export function extractList<T = any>(payload: any): T[] {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.items)) return payload.items;
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload.orders)) return payload.orders;
+  if (Array.isArray(payload.companies)) return payload.companies;
+  if (Array.isArray(payload.employees)) return payload.employees;
+  if (Array.isArray(payload.dishes)) return payload.dishes;
+  if (Array.isArray(payload.options)) return payload.options;
+  if (Array.isArray(payload.staff)) return payload.staff;
+  if (Array.isArray(payload.drops)) return payload.drops;
+  if (Array.isArray(payload.rows)) return payload.rows;
+  return [];
+}
+

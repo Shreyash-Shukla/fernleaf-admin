@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { formatCents, formatDate, formatMinutesToTime } from '@/lib/utils';
+import { extractList, formatCents, formatDate, formatMinutesToTime } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,7 @@ export default function OrdersListPage() {
   const [toDate, setToDate] = useState('');
 
   // Fetch companies for filter dropdown
-  const { data: companiesData } = useQuery<{ companies: any[] }>({
+  const { data: companiesData } = useQuery<{ items: any[] }>({
     queryKey: ['companies', 'filter-list'],
     queryFn: () => fetchApi('/companies?limit=100'),
   });
@@ -53,15 +53,25 @@ export default function OrdersListPage() {
   if (toDate) queryParams.set('to', toDate);
 
   const { data, isLoading } = useQuery<{
-    orders: any[];
-    total: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
+    data: any[];
+    pagination: {
+      total: number;
+      page: number;
+      pageSize: number;
+      totalPages: number;
+    };
   }>({
     queryKey: ['orders', 'list', queryParams.toString()],
     queryFn: () => fetchApi(`/orders?${queryParams.toString()}`),
   });
+
+  const orders = extractList(data);
+  const pagination = data?.pagination || {
+    page: (data as any)?.page || page,
+    pageSize: (data as any)?.pageSize || 15,
+    total: (data as any)?.total ?? orders.length,
+    totalPages: (data as any)?.totalPages || Math.ceil(((data as any)?.total ?? orders.length) / 15) || 1,
+  };
 
   const getStatusBadge = (statusName: string) => {
     switch (statusName) {
@@ -165,7 +175,7 @@ export default function OrdersListPage() {
                 className="w-full px-2.5 py-1.5 bg-slate-950/70 border border-slate-700/80 rounded-lg text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               >
                 <option value="">All Companies</option>
-                {companiesData?.companies?.map((c) => (
+                {extractList(companiesData).map((c: any) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -237,8 +247,8 @@ export default function OrdersListPage() {
                       Loading orders...
                     </td>
                   </tr>
-                ) : data?.orders && data.orders.length > 0 ? (
-                  data.orders.map((order) => (
+                ) : orders.length > 0 ? (
+                  orders.map((order: any) => (
                     <tr
                       key={order.id}
                       className="hover:bg-slate-850/50 transition-colors"
@@ -312,30 +322,31 @@ export default function OrdersListPage() {
           </div>
 
           {/* Pagination Footer */}
-          {data && data.totalPages > 1 && (
+          {data && pagination.totalPages > 1 && (
             <div className="p-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
               <div>
-                Showing {(data.page - 1) * data.pageSize + 1} to{' '}
-                {Math.min(data.page * data.pageSize, data.total)} of {data.total} orders
+                Showing {(pagination.page - 1) * pagination.pageSize + 1} to{' '}
+                {Math.min(pagination.page * pagination.pageSize, pagination.total)} of{' '}
+                {pagination.total} orders
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={data.page <= 1}
+                  disabled={pagination.page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   className="h-8 px-2.5"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" /> Prev
                 </Button>
                 <span className="px-2 text-slate-300 font-medium">
-                  {data.page} / {data.totalPages}
+                  {pagination.page} / {pagination.totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={data.page >= data.totalPages}
-                  onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
+                  disabled={pagination.page >= pagination.totalPages}
+                  onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                   className="h-8 px-2.5"
                 >
                   Next <ChevronRight className="w-4 h-4 ml-1" />

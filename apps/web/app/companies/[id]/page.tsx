@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/shell/app-shell';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { formatDate, formatMinutesToTime, minutesToTimeString, timeStringToMinutes } from '@/lib/utils';
+import { extractList, formatDate, formatMinutesToTime, minutesToTimeString, timeStringToMinutes } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,16 @@ export default function CompanyDetailPage() {
     queryFn: () => fetchApi(`/companies/${id}/hidden-categories`),
     enabled: !!id,
   });
+
+  // Fetch Employees for this company
+  const { data: employeesData } = useQuery<any>({
+    queryKey: ['employees', 'company', id],
+    queryFn: () => fetchApi(`/employees?companyId=${id}&limit=100`),
+    enabled: !!id,
+  });
+  const companyEmployees = extractList(employeesData).length > 0
+    ? extractList(employeesData)
+    : (company?.employees || []);
 
   // General details form state
   const [editTierId, setEditTierId] = useState<string>('');
@@ -248,7 +258,7 @@ export default function CompanyDetailPage() {
                 </Badge>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Billing Contact: {company.billingEmail} • {company.employees?.length || 0} employees
+                Billing Contact: {company.billingEmail} • {company.employeeCount ?? companyEmployees.length} employees
               </p>
             </div>
           </div>
@@ -275,7 +285,7 @@ export default function CompanyDetailPage() {
               Addresses ({company.addresses?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="employees" className="text-xs">
-              Employees ({company.employees?.length || 0})
+              Employees ({company.employeeCount ?? companyEmployees.length})
             </TabsTrigger>
             <TabsTrigger value="menu" className="text-xs">
               Menu & Price Hiding
@@ -592,7 +602,7 @@ export default function CompanyDetailPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
-                    {company.employees?.map((emp: any) => (
+                    {companyEmployees.map((emp: any) => (
                       <tr key={emp.id} className="hover:bg-slate-850/50">
                         <td className="py-3 px-4 font-semibold text-white">{emp.name}</td>
                         <td className="py-3 px-4 text-slate-300">{emp.email}</td>

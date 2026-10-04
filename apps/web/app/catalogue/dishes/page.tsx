@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { formatCents } from '@/lib/utils';
+import { extractList, formatCents } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -95,7 +95,7 @@ export default function DishesListPage() {
     setSelectedTags([]);
   }
 
-  const dishes = dishesData?.dishes || [];
+  const dishes = extractList(dishesData);
 
   return (
     <AppShell requiredPermission="catalogue:read">

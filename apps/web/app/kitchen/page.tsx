@@ -97,8 +97,8 @@ export default function KitchenBoardPage() {
   const stations = boardData?.stations || [];
   const cookTotals = boardData?.cookTotals || [];
 
-  const totalUnits = boardData?.totalUnits || 0;
-  const doneUnits = boardData?.doneUnits || 0;
+  const totalUnits = boardData?.summary?.totalMeals ?? boardData?.totalUnits ?? 0;
+  const doneUnits = boardData?.summary?.doneMeals ?? boardData?.doneUnits ?? 0;
   const startedUnits = cookTotals.reduce((sum: number, c: any) => sum + (c.startedQty || 0), 0);
   const notStartedUnits = Math.max(0, totalUnits - (doneUnits + startedUnits));
 

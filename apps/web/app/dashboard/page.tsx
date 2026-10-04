@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { formatCents, formatDate, formatMinutesToTime } from '@/lib/utils';
+import { extractList, formatCents, formatDate, formatMinutesToTime } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -190,25 +190,30 @@ export default function DashboardPage() {
   });
 
   // Admin Calculations
-  const ordersList = todayOrders?.orders || [];
+  const ordersList = extractList(todayOrders);
   const statusCounts = ordersList.reduce((acc: Record<string, number>, order: any) => {
     acc[order.status] = (acc[order.status] || 0) + 1;
     return acc;
   }, {});
 
-  const pipelineList = pipelineOrders?.orders || [];
+  const pipelineList = extractList(pipelineOrders);
   const activePipeline = pipelineList.filter((o) =>
     ['PLACED', 'CONFIRMED', 'DELIVERED'].includes(o.status)
   );
   const pipelineValueCents = activePipeline.reduce((sum, o) => sum + (o.totalCents || 0), 0);
 
-  const kitchenUnits = kitchenData?.totalUnits || 0;
-  const kitchenDone = kitchenData?.doneUnits || 0;
-  const lateOrdersCount = kitchenData?.lateOrdersCount || 0;
-  const atRiskCount = kitchenData?.atRiskOrdersCount || 0;
+  const kitchenUnits = kitchenData?.summary?.totalMeals ?? kitchenData?.totalUnits ?? 0;
+  const kitchenDone = kitchenData?.summary?.doneMeals ?? kitchenData?.doneUnits ?? 0;
+  const lateOrdersCount = kitchenData?.summary?.lateCount ?? kitchenData?.lateOrdersCount ?? 0;
+  const atRiskCount = kitchenData?.summary?.atRiskCount ?? kitchenData?.atRiskOrdersCount ?? 0;
 
-  const totalUnbilledCents = unbilledData?.summary?.totalUnbilledCents || 0;
-  const unbilledCompanies = unbilledData?.companies || [];
+  const unbilledCompanies = extractList(unbilledData);
+  const totalUnbilledCents =
+    unbilledData?.summary?.totalUnbilledCents ??
+    unbilledCompanies.reduce(
+      (acc: number, c: any) => acc + (c.netUnbilledCents ?? c.unbilledCents ?? c.unbilledTotalCents ?? 0),
+      0
+    );
 
   // Kitchen Metrics
   const kitchenCookTotals = kitchenData?.cookTotals || [];
@@ -220,8 +225,8 @@ export default function DashboardPage() {
   const incompleteKitchenOrders = kitchenOrders.filter((o: any) => !o.kitchenReadyAt && o.plannedKitchenReadyAt);
   const nextKitchenDeadline = incompleteKitchenOrders.length > 0
     ? incompleteKitchenOrders.sort((a: any, b: any) =>
-        new Date(a.plannedKitchenReadyAt).getTime() - new Date(b.plannedKitchenReadyAt).getTime()
-      )[0]
+      new Date(a.plannedKitchenReadyAt).getTime() - new Date(b.plannedKitchenReadyAt).getTime()
+    )[0]
     : null;
 
   // Dispatch Metrics
@@ -283,41 +288,37 @@ export default function DashboardPage() {
           </span>
           <button
             onClick={() => setActiveRoleView('admin')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeRoleView === 'admin'
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeRoleView === 'admin'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
+              }`}
           >
             Admin Executive
           </button>
           <button
             onClick={() => setActiveRoleView('kitchen')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeRoleView === 'kitchen'
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeRoleView === 'kitchen'
                 ? 'bg-sky-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
+              }`}
           >
             Kitchen Lead (6 AM)
           </button>
           <button
             onClick={() => setActiveRoleView('dispatch')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeRoleView === 'dispatch'
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeRoleView === 'dispatch'
                 ? 'bg-purple-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
+              }`}
           >
             Dispatch Coordinator
           </button>
           <button
             onClick={() => setActiveRoleView('driver')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeRoleView === 'driver'
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeRoleView === 'driver'
                 ? 'bg-amber-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
+              }`}
           >
             Driver Field Run
           </button>

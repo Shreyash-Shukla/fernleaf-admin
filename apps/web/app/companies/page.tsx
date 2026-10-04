@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { formatMinutesToTime } from '@/lib/utils';
+import { extractList, formatMinutesToTime } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,7 @@ export default function CompaniesPage() {
   const [addrPostcode, setAddrPostcode] = useState('');
 
   // Fetch Companies
-  const { data, isLoading } = useQuery<{ companies: any[] }>({
+  const { data, isLoading } = useQuery<{ items: any[] }>({
     queryKey: ['companies', 'list', search],
     queryFn: () => fetchApi(`/companies?q=${search}&limit=100`),
   });
@@ -76,7 +76,7 @@ export default function CompaniesPage() {
     },
   });
 
-  const companies = data?.companies || [];
+  const companies = extractList(data);
 
   return (
     <AppShell requiredPermission="companies:read">

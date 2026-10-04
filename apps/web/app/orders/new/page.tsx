@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { formatCents, formatDate, formatMinutesToTime, minutesToTimeString, timeStringToMinutes } from '@/lib/utils';
+import { extractList, formatCents, formatDate, formatMinutesToTime, minutesToTimeString, timeStringToMinutes } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -69,7 +69,7 @@ export default function NewOrderPage() {
   const [orderLines, setOrderLines] = useState<OrderLineDraft[]>([]);
 
   // 1. Fetch Companies
-  const { data: companiesData } = useQuery<{ companies: any[] }>({
+  const { data: companiesData } = useQuery<{ items: any[] }>({
     queryKey: ['companies', 'for-order'],
     queryFn: () => fetchApi('/companies?limit=100&active=true'),
   });
@@ -82,7 +82,7 @@ export default function NewOrderPage() {
   });
 
   // 3. Fetch Employees for selected company
-  const { data: employeesData } = useQuery<{ employees: any[] }>({
+  const { data: employeesData } = useQuery<{ items: any[] }>({
     queryKey: ['employees', 'company', selectedCompanyId],
     queryFn: () => fetchApi(`/employees?companyId=${selectedCompanyId}&limit=100&active=true`),
     enabled: !!selectedCompanyId,
@@ -350,7 +350,7 @@ export default function NewOrderPage() {
                   className="w-full px-3 py-2 bg-slate-950/70 border border-slate-700/80 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="">Select a Company...</option>
-                  {companiesData?.companies?.map((c) => (
+                  {extractList(companiesData).map((c: any) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
@@ -374,7 +374,7 @@ export default function NewOrderPage() {
                   <option value="">
                     {selectedCompanyId ? 'Select Employee...' : 'Select Company first'}
                   </option>
-                  {employeesData?.employees?.map((emp) => (
+                  {extractList(employeesData).map((emp: any) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name} ({emp.email})
                     </option>

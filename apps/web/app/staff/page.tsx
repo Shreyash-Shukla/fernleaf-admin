@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
+import { extractList } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -94,7 +95,7 @@ export default function StaffPage() {
     setAddModalOpen(true);
   }
 
-  const staffList = staffData?.staff || [];
+  const staffList = extractList(staffData);
 
   return (
     <AppShell requiredPermission="staff:read">

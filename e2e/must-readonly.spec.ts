@@ -177,6 +177,24 @@ test.describe('Read-only Must requirements', () => {
     }
   });
 
+  test('@smoke seeded companies, employees, and orders render in admin workflows', async ({ page }) => {
+    await loginViaUi(page, 'admin');
+
+    await page.goto('/companies');
+    await expect(page.getByText('Nexus Tech Solutions').first()).toBeVisible();
+
+    await page.goto('/employees');
+    await expect(page.locator('tbody tr').first()).toBeVisible();
+    await expect(page.locator('select').first()).toContainText('Nexus Tech Solutions');
+
+    await page.goto('/orders');
+    await expect(page.locator('tbody tr').first()).toBeVisible();
+    await expect(page.locator('select').filter({ hasText: 'All Companies' })).toContainText('Nexus Tech Solutions');
+
+    await page.goto('/orders/new');
+    await expect(page.locator('select').first()).toContainText('Nexus Tech Solutions');
+  });
+
   test('@regression driver view is usable at a phone viewport', async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 360, height: 800 }, isMobile: true });
     const page = await context.newPage();

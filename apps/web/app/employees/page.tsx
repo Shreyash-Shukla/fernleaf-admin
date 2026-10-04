@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
+import { extractList } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,7 +50,7 @@ export default function EmployeesPage() {
   const [importResults, setImportResults] = useState<any>(null);
 
   // 1. Fetch Companies for Filter & Creation
-  const { data: companiesData } = useQuery<{ companies: any[] }>({
+  const { data: companiesData } = useQuery<{ items: any[] }>({
     queryKey: ['companies', 'filter'],
     queryFn: () => fetchApi('/companies?limit=100'),
   });
@@ -70,7 +71,7 @@ export default function EmployeesPage() {
   if (search) queryParams.set('q', search);
   if (selectedCompanyId) queryParams.set('companyId', selectedCompanyId);
 
-  const { data: employeesData, isLoading } = useQuery<{ employees: any[] }>({
+  const { data: employeesData, isLoading } = useQuery<{ items: any[] }>({
     queryKey: ['employees', 'list', queryParams.toString()],
     queryFn: () => fetchApi(`/employees?${queryParams.toString()}`),
   });
@@ -157,7 +158,8 @@ export default function EmployeesPage() {
     setSelectedTags(emp.dietaryTags?.map((t: any) => t.id || t.tagId) || []);
   }
 
-  const employees = employeesData?.employees || [];
+  const employees = extractList(employeesData);
+  const companies = extractList(companiesData);
 
   return (
     <AppShell requiredPermission="employees:read">
@@ -222,7 +224,7 @@ export default function EmployeesPage() {
                 className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-700/80 rounded-lg text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               >
                 <option value="">All Companies</option>
-                {companiesData?.companies?.map((c) => (
+                {companies.map((c: any) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -360,7 +362,7 @@ export default function EmployeesPage() {
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 >
                   <option value="">Select Company...</option>
-                  {companiesData?.companies?.map((c) => (
+                  {companies.map((c: any) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
@@ -619,7 +621,7 @@ export default function EmployeesPage() {
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 >
                   <option value="">Select Company...</option>
-                  {companiesData?.companies?.map((c) => (
+                  {companies.map((c: any) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>

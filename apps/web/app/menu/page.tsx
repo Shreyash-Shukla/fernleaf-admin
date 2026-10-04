@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { formatCents } from '@/lib/utils';
+import { extractList, formatCents } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -251,7 +251,7 @@ export default function MenuPage() {
                   className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200"
                 >
                   <option value="">Default Preview (Default Tier)</option>
-                  {employeesData?.employees?.map((emp) => (
+                  {extractList(employeesData).map((emp: any) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name} ({emp.company?.name})
                     </option>
@@ -437,7 +437,7 @@ export default function MenuPage() {
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
               >
                 <option value="">Select a dish from catalogue...</option>
-                {dishesData?.dishes?.map((d) => (
+                {extractList(dishesData).map((d: any) => (
                   <option key={d.id} value={d.id}>
                     {d.name} ({d.sku}) — Cost {formatCents(d.costCents)}
                   </option>

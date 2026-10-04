@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { formatCents, formatDate } from '@/lib/utils';
+import { extractList, formatCents, formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -101,9 +101,12 @@ export default function BillingPage() {
     },
   });
 
-  const companiesList = unbilledData?.companies || [];
-  const invoicesList = invoicesData?.invoices || [];
-  const adjustmentsList = adjustmentsData?.adjustments || [];
+  const companiesList = extractList(unbilledData);
+  const invoicesList = extractList(invoicesData);
+  const adjustmentsList = extractList(adjustmentsData);
+  const totalUnbilled =
+    unbilledData?.summary?.totalUnbilledCents ??
+    companiesList.reduce((acc, c: any) => acc + (c.netUnbilledCents ?? c.unbilledCents ?? 0), 0);
 
   return (
     <AppShell requiredPermission="billing:read">
@@ -125,7 +128,7 @@ export default function BillingPage() {
               Total Unbilled Across Companies
             </div>
             <div className="text-xl font-bold text-white">
-              {formatCents(unbilledData?.summary?.totalUnbilledCents || 0)}
+              {formatCents(totalUnbilled)}
             </div>
           </div>
         </div>
@@ -185,7 +188,7 @@ export default function BillingPage() {
                             {comp.orderCount} orders
                           </td>
                           <td className="py-3 px-4 font-bold text-emerald-400 text-sm">
-                            {formatCents(comp.unbilledTotalCents)}
+                            {formatCents(comp.netUnbilledCents ?? comp.unbilledCents ?? comp.unbilledTotalCents ?? 0)}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <Button
@@ -377,17 +380,17 @@ export default function BillingPage() {
             <div className="space-y-4 py-2 text-xs">
               <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
                 <div className="font-semibold text-slate-200">
-                  {companyUnbilledData?.company?.name || 'Company'}
+                  {companyUnbilledData?.companyName || companyUnbilledData?.company?.name || 'Company'}
                 </div>
                 <div className="text-slate-400 text-[11px]">
-                  Billing Contact: {companyUnbilledData?.company?.billingEmail}
+                  Billing Contact: {companyUnbilledData?.company?.billingEmail || companyUnbilledData?.billingEmail || 'On file'}
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between text-slate-300">
                   <span>Unbilled Confirmed Orders:</span>
-                  <strong>{companyUnbilledData?.orders?.length || 0} orders</strong>
+                  <strong>{companyUnbilledData?.orderCount ?? companyUnbilledData?.orders?.length ?? 0} orders</strong>
                 </div>
                 <div className="flex justify-between text-slate-300">
                   <span>Orders Subtotal:</span>
@@ -396,12 +399,12 @@ export default function BillingPage() {
                   </span>
                 </div>
 
-                {companyUnbilledData?.adjustments?.length > 0 && (
+                {((companyUnbilledData?.openAdjustments || companyUnbilledData?.adjustments)?.length > 0) && (
                   <div className="flex justify-between text-rose-400">
                     <span>Credit Adjustments Applied:</span>
                     <span>
                       {formatCents(
-                        companyUnbilledData.adjustments.reduce(
+                        (companyUnbilledData?.openAdjustments || companyUnbilledData?.adjustments).reduce(
                           (s: number, a: any) => s + a.amountCents,
                           0
                         )
@@ -414,11 +417,12 @@ export default function BillingPage() {
                   <span>Net Invoice Total:</span>
                   <span className="text-emerald-400 text-base">
                     {formatCents(
-                      (companyUnbilledData?.totalCents || 0) +
-                        (companyUnbilledData?.adjustments?.reduce(
-                          (s: number, a: any) => s + a.amountCents,
-                          0
-                        ) || 0)
+                      companyUnbilledData?.netUnbilledCents ??
+                        ((companyUnbilledData?.totalCents || 0) +
+                          ((companyUnbilledData?.openAdjustments || companyUnbilledData?.adjustments)?.reduce(
+                            (s: number, a: any) => s + a.amountCents,
+                            0
+                          ) || 0))
                     )}
                   </span>
                 </div>
