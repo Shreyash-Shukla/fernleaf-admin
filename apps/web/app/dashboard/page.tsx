@@ -310,7 +310,7 @@ export default function DashboardPage() {
             {/* KPI Strip: 5 equal columns, gap 16, identical structure for baseline alignment */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
               {/* Card 1: Orders Today */}
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between select-none">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2 select-none">
                 {/* Row 1: Label + Info icon */}
                 <div className="h-[16px] flex items-center justify-between">
                   <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] truncate">
@@ -390,7 +390,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Card 2: Next Cut-off */}
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between select-none">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2 select-none">
                 <div className="h-[16px] flex items-center justify-between">
                   <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] truncate">
                     Next cut-off
@@ -424,7 +424,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Card 3: 7-day Pipeline */}
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between select-none">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2 select-none">
                 <div className="h-[16px] flex items-center justify-between">
                   <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] truncate">
                     7-day pipeline
@@ -454,7 +454,7 @@ export default function DashboardPage() {
               {/* Card 4: Kitchen prep today */}
               <div
                 className={cn(
-                  'h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between select-none',
+                  'min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2 select-none',
                   lateOrdersCount > 0 && 'border-l-[3px] border-l-[var(--status-danger-fg)]'
                 )}
               >
@@ -480,7 +480,7 @@ export default function DashboardPage() {
                   <span className="text-[13px] text-[var(--text-muted)]">units</span>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {lateOrdersCount > 0 ? (
                     <StatusBadge category="danger" label={`${lateOrdersCount} Late`} pulse />
                   ) : atRiskCount > 0 ? (
@@ -492,7 +492,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Card 5: Unbilled receivables */}
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between select-none">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2 select-none">
                 <div className="h-[16px] flex items-center justify-between">
                   <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] truncate">
                     Unbilled receivables
@@ -666,7 +666,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
                   Meals to Cook
                 </span>
@@ -676,14 +676,14 @@ export default function DashboardPage() {
                   </span>
                   <span className="text-[13px] text-[var(--text-muted)]">meals</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <StatusBadge category="neutral" label={`${unstartedKitchenUnits} Queued`} />
                   <StatusBadge category="warning" label={`${startedKitchenUnits} Cooking`} />
                   <StatusBadge category="success" label={`${kitchenDone} Done`} />
                 </div>
               </div>
 
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
                   By Station (Remaining)
                 </span>
@@ -698,7 +698,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
                   Late & At Risk
                 </span>
@@ -708,7 +708,7 @@ export default function DashboardPage() {
                   </span>
                   <span className="text-[13px] text-[var(--text-muted)]">late</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {lateOrdersCount > 0 ? (
                     <StatusBadge category="danger" label={`${lateOrdersCount} Late`} pulse />
                   ) : (
@@ -720,7 +720,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
                   Next Kitchen Deadline
                 </span>
@@ -759,7 +759,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
                   Drops Today by Stage
                 </span>
@@ -769,14 +769,14 @@ export default function DashboardPage() {
                   </span>
                   <span className="text-[13px] text-[var(--text-muted)]">drops</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <StatusBadge category="info" label={`${dispatchSummary?.stageCounts?.PREPARING ?? 0} Prep`} />
                   <StatusBadge category="warning" label={`${dispatchSummary?.stageCounts?.KITCHEN_READY ?? 0} Staged`} />
                   <StatusBadge category="success" label={`${dispatchSummary?.stageCounts?.DELIVERED ?? 0} Delivered`} />
                 </div>
               </div>
 
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
                   Needs a Driver
                 </span>
@@ -791,7 +791,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
                   Behind Schedule
                 </span>
@@ -801,7 +801,7 @@ export default function DashboardPage() {
                   </span>
                   <span className="text-[13px] text-[var(--text-muted)]">delayed</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {behindScheduleDrops.length > 0 ? (
                     <StatusBadge category="danger" label={`${behindScheduleDrops.length} Delayed`} pulse />
                   ) : (
@@ -810,7 +810,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
                   Next Drop
                 </span>
@@ -845,7 +845,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
                   My Drops Today
                 </span>
@@ -855,7 +855,7 @@ export default function DashboardPage() {
                   </span>
                   <span className="text-[13px] text-[var(--text-muted)]">completed</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <StatusBadge
                     category={driverSummary?.remainingDrops === 0 ? 'success' : 'warning'}
                     label={`${driverSummary?.remainingDrops ?? 0} Remaining`}
@@ -863,7 +863,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between">
+              <div className="min-h-[128px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
                   Next Destination
                 </span>

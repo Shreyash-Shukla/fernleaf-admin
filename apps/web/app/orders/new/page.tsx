@@ -294,7 +294,7 @@ export default function NewOrderPage() {
               <span
                 className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold tabular-nums ${
                   step === s.num
-                    ? 'bg-brand-solid text-[#042F2E]'
+                    ? 'bg-brand-solid text-[var(--brand-solid-text)]'
                     : step > s.num
                     ? 'bg-raised text-text border border-border'
                     : 'bg-raised text-faint'

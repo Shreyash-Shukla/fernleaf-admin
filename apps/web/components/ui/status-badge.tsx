@@ -68,7 +68,7 @@ export function StatusBadge({
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1.5 h-[22px] px-2 rounded-[6px] border text-[12px] font-medium leading-none select-none tracking-normal',
+        'inline-flex min-w-0 max-w-full shrink-0 items-center gap-1.5 h-[22px] px-2 rounded-[6px] border text-[12px] font-medium leading-none select-none tracking-normal',
         style.bg,
         style.text,
         style.border,

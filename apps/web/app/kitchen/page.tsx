@@ -163,8 +163,7 @@ export default function KitchenBoardPage() {
 
   return (
     <AppShell requiredPermission="kitchen:read">
-      {/* Kitchen Board is ALWAYS DARK: forced data-theme="dark" */}
-      <div data-theme="dark" className="dark bg-[var(--bg-app)] text-[var(--text)] space-y-4">
+      <div className="bg-[var(--bg-app)] text-[var(--text)] space-y-4">
         {/* Page Header */}
         <PageHeader
           title="Kitchen Prep Board"

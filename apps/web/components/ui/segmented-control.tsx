@@ -27,7 +27,7 @@ export function SegmentedControl<T extends string = string>({
     <div
       role="tablist"
       className={cn(
-        'inline-flex items-center p-[2px] rounded-[8px] bg-[var(--bg-raised)] border border-[var(--border)] select-none',
+        'inline-flex max-w-full items-center overflow-x-auto p-[2px] rounded-[8px] bg-[var(--bg-raised)] border border-[var(--border)] select-none',
         className
       )}
     >
