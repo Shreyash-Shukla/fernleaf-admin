@@ -650,8 +650,20 @@ model Drop {
   driver      User?   @relation("DropDriverAssigned", fields: [driverId], references: [id])
   deliveredBy User?   @relation("DropDeliveredBy", fields: [deliveredById], references: [id])
   orders      Order[]
+  photo       DeliveryPhoto?
 
   @@unique([deliveryDate, companyId, addressId, deliveryTimeMin])
+}
+
+model DeliveryPhoto {
+  id        String   @id @default(uuid())
+  dropId    String   @unique
+  mime      String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  drop Drop @relation(fields: [dropId], references: [id], onDelete: Cascade)
 }
 
 // ─── BILLING ────────────────────────────────────────────────────

@@ -482,7 +482,7 @@ export class OrdersService {
     }
 
     if (existing.outForDeliveryAt) {
-      throw DomainError.badRequest(
+      throw DomainError.conflict(
         ERRORS.ORDER_NOT_EDITABLE,
         'Cannot override order that is already out for delivery',
       );
@@ -538,20 +538,18 @@ export class OrdersService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Row-level lock on the order
+      await tx.$executeRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
+
       // If drop assignment needs to change, handle re-keying
       if (needsDropUpdate && existing.status === 'CONFIRMED' && existing.dropId) {
-        // Remove from current drop
-        await tx.order.update({
-          where: { id: orderId },
-          data: { dropId: null },
-        });
-
-        // Find or create the new drop
+        const oldDropId = existing.dropId;
         const deliveryDate = existing.deliveryDate;
         const deliveryTimeMin = updateData.deliveryTimeMin ?? existing.deliveryTimeMin;
         const addressId = updateData.addressId ?? existing.addressId;
 
-        const drop = await tx.drop.upsert({
+        // Find or create the target drop
+        const targetDrop = await tx.drop.upsert({
           where: {
             deliveryDate_companyId_addressId_deliveryTimeMin: {
               deliveryDate,
@@ -565,11 +563,41 @@ export class OrdersService {
             companyId: existing.companyId,
             addressId,
             deliveryTimeMin,
+            driverId: existing.company.defaultDriverId ?? null,
           },
           update: {},
         });
 
-        updateData.dropId = drop.id;
+        updateData.dropId = targetDrop.id;
+
+        // If the order moved to a different drop, check if the old drop is now empty
+        if (oldDropId !== targetDrop.id) {
+          const remainingActive = await tx.order.count({
+            where: {
+              dropId: oldDropId,
+              id: { not: orderId },
+              status: { in: ['CONFIRMED', 'DELIVERED'] },
+            },
+          });
+
+          if (remainingActive === 0) {
+            const oldDrop = await tx.drop.findUnique({
+              where: { id: oldDropId },
+              select: { outForDeliveryAt: true, deliveredAt: true },
+            });
+
+            if (oldDrop && !oldDrop.outForDeliveryAt && !oldDrop.deliveredAt) {
+              // Unlink non-active orders before deleting drop
+              await tx.order.updateMany({
+                where: { dropId: oldDropId },
+                data: { dropId: null },
+              });
+              await tx.drop.delete({
+                where: { id: oldDropId },
+              });
+            }
+          }
+        }
       }
 
       const updated = await tx.order.update({
