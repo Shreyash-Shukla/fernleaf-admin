@@ -9,3 +9,4 @@ export * from './pricing.js';
 export * from './combinations.js';
 export * from './planTimes.js';
 export * from './companies.js';
+export * from './billing.js';

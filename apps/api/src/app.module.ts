@@ -16,6 +16,7 @@ import { EmployeesModule } from './employees/employees.module';
 import { OrdersModule } from './orders/orders.module';
 import { KitchenModule } from './kitchen/kitchen.module';
 import { DispatchModule } from './dispatch/dispatch.module';
+import { BillingModule } from './billing/billing.module';
 import { SeedService } from './seed.service';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
@@ -39,6 +40,7 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     OrdersModule,
     KitchenModule,
     DispatchModule,
+    BillingModule,
   ],
   providers: [
     SeedService,

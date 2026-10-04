@@ -346,11 +346,11 @@ export class OrdersService {
           'Cannot cancel after cut-off. Only admins can override.',
         );
       }
-    } else if (existing.status === 'CONFIRMED') {
+    } else if (existing.status === 'CONFIRMED' || existing.status === 'DELIVERED') {
       if (!isAdmin) {
         throw DomainError.forbidden(
           ERRORS.FORBIDDEN,
-          'Only admins can cancel confirmed orders',
+          `Only admins can cancel ${existing.status.toLowerCase()} orders`,
         );
       }
     } else {
