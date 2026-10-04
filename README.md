@@ -14,7 +14,8 @@
 ## 1. Live Deployment & Reviewer Credentials
 
 - **Live Frontend URL:** *(Provided separately for private review)*
-- **Live API Backend URL:** *(Proxied via Frontend /api reverse proxy)*
+- **Live API Backend URL (Render):** https://fernleaf-admin.onrender.com
+- **Backend Health Check (Render):** [https://fernleaf-admin.onrender.com/health](https://fernleaf-admin.onrender.com/health) (check if backend at Render is up and running: returns `{"ok":true}`)
 - **Database:** Hosted PostgreSQL on Neon (Serverless Postgres with Connection Pooling)
 
 ### Test Accounts (Mandatory Credentials)
@@ -74,7 +75,8 @@ The system automatically seeds four distinct accounts on boot with exact permiss
    ```
    - **Frontend App:** `http://localhost:3000`
    - **NestJS API:** `http://localhost:3001`
-   - **API Health Check:** `http://localhost:3001/health`
+   - **API Health Check (Local):** `http://localhost:3001/health`
+   - **API Health Check (Live Render):** [https://fernleaf-admin.onrender.com/health](https://fernleaf-admin.onrender.com/health)
 
 6. **Run Verification Suites:**
    ```bash
