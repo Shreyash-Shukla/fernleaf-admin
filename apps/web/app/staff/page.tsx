@@ -196,12 +196,12 @@ export default function StaffPage() {
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="font-medium text-text">{user.name}</div>
-                        <div className="text-xs text-muted font-mono">{user.email}</div>
+                        <div className="text-xs text-muted font-normal mt-0.5">{user.email}</div>
                       </TableCell>
                       <TableCell>
                         <Chip>{user.role?.name || user.role?.key}</Chip>
                       </TableCell>
-                      <TableCell className="text-muted font-mono text-xs">
+                      <TableCell className="text-muted text-xs">
                         {user.role?.landingPath || '/home'}
                       </TableCell>
                       <TableCell>
@@ -215,7 +215,7 @@ export default function StaffPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => openEdit(user)}
-                          className="h-7 text-xs px-2 text-muted"
+                          className="h-7 text-xs px-2 text-muted hover:text-text"
                         >
                           <Edit className="w-3.5 h-3.5" />
                         </Button>

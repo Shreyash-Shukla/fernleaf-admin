@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -12,9 +14,9 @@
     --bg-raised: #171C1A;
     --border: #232A27;
     --border-strong: #323B37;
-    --text: #E7ECE9;
-    --text-muted: #98A29D;
-    --text-faint: #66706B;
+    --text: #F3F6F4;
+    --text-muted: #A9B4AE;
+    --text-faint: #78857F;
 
     --brand-solid: #2DD4BF;
     --brand-solid-text: #042F2E;
@@ -57,9 +59,9 @@
     --bg-raised: #EEF1EF;
     --border: #E1E5E2;
     --border-strong: #C9D0CC;
-    --text: #181C1A;
-    --text-muted: #59635E;
-    --text-faint: #86908B;
+    --text: #111815;
+    --text-muted: #4F5B55;
+    --text-faint: #73807A;
 
     --brand-solid: #0F766E;
     --brand-solid-text: #FFFFFF;
@@ -105,7 +107,7 @@
   body {
     background-color: var(--bg-app);
     color: var(--text);
-    font-family: var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: 'Inter', var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
@@ -116,10 +118,28 @@
     padding: 0;
   }
 
+  /* Placeholder styling for high visibility */
+  ::placeholder {
+    color: var(--text-muted) !important;
+    opacity: 0.85;
+  }
+
   /* Focus rings */
   :focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: 1px;
+  }
+}
+
+@layer utilities {
+  .text-text {
+    color: var(--text) !important;
+  }
+  .text-muted {
+    color: var(--text-muted) !important;
+  }
+  .text-faint {
+    color: var(--text-faint) !important;
   }
 }
 

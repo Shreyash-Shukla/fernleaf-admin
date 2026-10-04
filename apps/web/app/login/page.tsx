@@ -132,11 +132,11 @@ export default function LoginPage() {
                 <div className="text-xs font-medium text-text">
                   {label}
                 </div>
-                <div className="text-[11px] font-mono text-muted truncate">{role}@test.com</div>
+                <div className="text-[12px] text-muted truncate">{role}@test.com</div>
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-muted text-center pt-1 font-mono tabular-nums">
+          <p className="text-[11px] text-muted text-center pt-1 tabular-nums">
             Password: Test@1234
           </p>
         </div>

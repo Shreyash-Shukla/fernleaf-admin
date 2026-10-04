@@ -163,7 +163,7 @@ export default function MenuPage() {
                     <div className="p-3.5 border-b border-border flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm text-text">{cat.name}</span>
-                        <span className="text-xs font-mono text-muted">/{cat.slug}</span>
+                        <span className="text-xs text-muted">/{cat.slug}</span>
                         {cat.isSecret && (
                           <Chip>Secret</Chip>
                         )}

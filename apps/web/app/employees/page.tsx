@@ -262,7 +262,7 @@ export default function EmployeesPage() {
                 </select>
               </div>
 
-              <div className="text-[12px] text-[var(--text-muted)] font-mono">
+              <div className="text-[12px] text-muted tabular-nums">
                 {employeesList.length} employees
               </div>
             </div>

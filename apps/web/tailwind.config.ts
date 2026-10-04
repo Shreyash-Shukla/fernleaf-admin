@@ -17,15 +17,51 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // Calm Density Tokens
+        // Base surfaces
         'bg-app': 'var(--bg-app)',
         'bg-surface': 'var(--bg-surface)',
         'bg-raised': 'var(--bg-raised)',
-        'border-token': 'var(--border)',
+        surface: 'var(--bg-surface)',
+        raised: 'var(--bg-raised)',
+        app: 'var(--bg-app)',
+
+        // Core text tokens (direct utilities text-text, text-muted, text-faint)
+        text: 'var(--text)',
+        muted: 'var(--text-muted)',
+        faint: 'var(--text-faint)',
+
+        // Component mapping aliases
+        border: 'var(--border)',
         'border-strong': 'var(--border-strong)',
+        'border-token': 'var(--border)',
+        input: 'var(--border)',
+        ring: 'var(--focus-ring)',
+        background: 'var(--bg-app)',
+        foreground: 'var(--text)',
         'text-main': 'var(--text)',
         'text-muted': 'var(--text-muted)',
         'text-faint': 'var(--text-faint)',
+
+        primary: {
+          DEFAULT: 'var(--brand-solid)',
+          foreground: 'var(--brand-solid-text)',
+        },
+        secondary: {
+          DEFAULT: 'var(--bg-surface)',
+          foreground: 'var(--text)',
+        },
+        destructive: {
+          DEFAULT: 'var(--status-danger-fg)',
+          foreground: '#FFFFFF',
+        },
+        card: {
+          DEFAULT: 'var(--bg-surface)',
+          foreground: 'var(--text)',
+        },
+        popover: {
+          DEFAULT: 'var(--bg-surface)',
+          foreground: 'var(--text)',
+        },
 
         // Brand colors
         'brand-solid': 'var(--brand-solid)',
@@ -55,39 +91,6 @@ const config: Config = {
         'status-neutral': 'var(--status-neutral-fg)',
         'status-neutral-bg': 'var(--status-neutral-bg)',
         'status-neutral-border': 'var(--status-neutral-border)',
-
-        // Component mapping aliases
-        border: 'var(--border)',
-        input: 'var(--border)',
-        ring: 'var(--focus-ring)',
-        background: 'var(--bg-app)',
-        foreground: 'var(--text)',
-        surface: 'var(--bg-surface)',
-        raised: 'var(--bg-raised)',
-        primary: {
-          DEFAULT: 'var(--brand-solid)',
-          foreground: 'var(--brand-solid-text)',
-        },
-        secondary: {
-          DEFAULT: 'var(--bg-surface)',
-          foreground: 'var(--text)',
-        },
-        destructive: {
-          DEFAULT: 'var(--status-danger-fg)',
-          foreground: '#FFFFFF',
-        },
-        muted: {
-          DEFAULT: 'var(--bg-raised)',
-          foreground: 'var(--text-muted)',
-        },
-        card: {
-          DEFAULT: 'var(--bg-surface)',
-          foreground: 'var(--text)',
-        },
-        popover: {
-          DEFAULT: 'var(--bg-surface)',
-          foreground: 'var(--text)',
-        },
       },
       borderRadius: {
         DEFAULT: '6px',
@@ -108,8 +111,8 @@ const config: Config = {
         DEFAULT: 'ease-out',
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['ui-monospace', 'JetBrains Mono', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+        sans: ['Inter', 'var(--font-inter)', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       },
       keyframes: {
         latePulse: {

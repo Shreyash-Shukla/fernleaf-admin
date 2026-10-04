@@ -598,7 +598,7 @@ export default function CompanyDetailPage() {
                   {companyEmployees.map((emp: any) => (
                     <TableRow key={emp.id}>
                       <TableCell className="font-medium text-text">{emp.name}</TableCell>
-                      <TableCell className="text-muted font-mono text-xs">{emp.email}</TableCell>
+                      <TableCell className="text-muted text-xs">{emp.email}</TableCell>
                       <TableCell>
                         <Chip>{emp.canChooseAddress ? 'Allowed' : 'Locked'}</Chip>
                       </TableCell>

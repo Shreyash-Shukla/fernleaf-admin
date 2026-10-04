@@ -364,7 +364,7 @@ export default function OrderDetailPage() {
               <div>
                 <div className="text-[11px] text-muted uppercase tracking-wider">Employee</div>
                 <div className="font-medium text-text">{order.employee?.name}</div>
-                <div className="text-[11px] text-muted font-mono">{order.employee?.email}</div>
+                <div className="text-[12px] text-muted">{order.employee?.email}</div>
               </div>
 
               <div className="pt-2 border-t border-border">
