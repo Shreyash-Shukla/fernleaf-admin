@@ -13,8 +13,8 @@
 
 ## 1. Live Deployment & Reviewer Credentials
 
-- **Live Frontend URL:** *(or custom Vercel domain)*
-- **Live API Backend URL:** 
+- **Live Frontend URL:** *(Provided separately for private review)*
+- **Live API Backend URL:** *(Proxied via Frontend /api reverse proxy)*
 - **Database:** Hosted PostgreSQL on Neon (Serverless Postgres with Connection Pooling)
 
 ### Test Accounts (Mandatory Credentials)

@@ -324,6 +324,13 @@ export async function runSeed(prisma: any, options?: RunSeedOptions) {
     const now = DateTime.now().setZone(timezone);
     const todayStr = now.toISODate()!;
 
+    // Keep the global default-tier invariant healthy even when the static
+    // catalogue is already present and the fast seed path is taken.
+    await prisma.priceTier.updateMany({
+      where: { isDefault: true, name: { not: 'Standard' } },
+      data: { isDefault: false },
+    });
+
     const existingCompanyCount = await prisma.company.count({
       where: { name: { in: SEED_COMPANIES.map((c) => c.name) } },
     });

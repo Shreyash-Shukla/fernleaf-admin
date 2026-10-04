@@ -21,6 +21,11 @@ yarn-error.log*
 pnpm-debug.log*
 *.log
 
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+
 # System & IDE
 .DS_Store
 Thumbs.db
