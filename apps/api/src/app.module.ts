@@ -13,6 +13,7 @@ import { PricingModule } from './pricing/pricing.module';
 import { MenuModule } from './menu/menu.module';
 import { CompaniesModule } from './companies/companies.module';
 import { EmployeesModule } from './employees/employees.module';
+import { OrdersModule } from './orders/orders.module';
 import { SeedService } from './seed.service';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
@@ -33,6 +34,7 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
     MenuModule,
     CompaniesModule,
     EmployeesModule,
+    OrdersModule,
   ],
   providers: [
     SeedService,
