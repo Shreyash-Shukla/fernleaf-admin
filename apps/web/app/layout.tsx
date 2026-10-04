@@ -1,10 +1,17 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
 export const metadata: Metadata = {
-  title: 'Fernleaf Kitchen Operations',
-  description: 'Commercial kitchen management, prep scheduling, and corporate meal logistics',
+  title: 'Fernleaf Kitchen Admin',
+  description: 'B2B commercial kitchen & corporate catering operations portal',
 };
 
 export default function RootLayout({
@@ -13,8 +20,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased">
+    <html lang="en" data-theme="dark" className={`dark ${inter.variable}`}>
+      <body className="min-h-screen bg-bg-app text-text-main font-sans antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -2,28 +2,39 @@
 
 import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageHeader } from '@/components/shell/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
 import { extractList } from '@/lib/utils';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Chip } from '@/components/ui/chip';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { Drawer } from '@/components/ui/drawer';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
 import { toast } from 'sonner';
 import {
-  ShieldAlert,
-  PlusCircle,
+  Plus,
   Edit,
-  UserCheck,
-  Lock,
-  Mail,
   Shield,
+  Search,
 } from 'lucide-react';
 
 export default function StaffPage() {
   const queryClient = useQueryClient();
 
-  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [isCompact, setIsCompact] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
 
   // Form State
@@ -54,7 +65,7 @@ export default function StaffPage() {
       }),
     onSuccess: () => {
       toast.success('Staff user created');
-      setAddModalOpen(false);
+      setDrawerOpen(false);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['staff'] });
     },
@@ -70,6 +81,7 @@ export default function StaffPage() {
       }),
     onSuccess: () => {
       toast.success('Staff user updated');
+      setDrawerOpen(false);
       setEditingStaff(null);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['staff'] });
@@ -85,6 +97,12 @@ export default function StaffPage() {
     setActive(true);
   }
 
+  function openCreate() {
+    resetForm();
+    setEditingStaff(null);
+    setDrawerOpen(true);
+  }
+
   function openEdit(user: any) {
     setEditingStaff(user);
     setName(user.name);
@@ -92,206 +110,220 @@ export default function StaffPage() {
     setPassword('');
     setRoleKey(user.role?.key || 'kitchen');
     setActive(user.active);
-    setAddModalOpen(true);
+    setDrawerOpen(true);
   }
 
-  const staffList = extractList(staffData);
+  const staffList = extractList(staffData).filter(
+    (u) =>
+      !search ||
+      u.name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.email?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <AppShell requiredPermission="staff:read">
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <ShieldAlert className="w-6 h-6 text-emerald-400" />
-              <span>Staff & Roles Management</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Internal kitchen, dispatch, driver, and administrator accounts
-            </p>
+        <PageHeader
+          title="Staff & Roles Management"
+          subtitle="Internal kitchen, dispatch, driver, and administrator accounts"
+          actions={
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Add staff user
+            </Button>
+          }
+        />
+
+        {/* Context Bar */}
+        <div className="h-10 px-3 bg-surface border border-border rounded-lg flex items-center justify-between gap-3 text-xs">
+          <div className="relative w-64">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+            <input
+              type="text"
+              placeholder="Search staff…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-8 pl-8 pr-2.5 bg-app border border-border rounded-md text-xs text-text placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-brand-solid"
+            />
           </div>
 
-          <Button
-            size="sm"
-            onClick={() => {
-              resetForm();
-              setEditingStaff(null);
-              setAddModalOpen(true);
-            }}
-            className="text-xs"
-          >
-            <PlusCircle className="w-4 h-4 mr-1.5" />
-            Add Staff User
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCompact(!isCompact)}
+              className="h-7 text-xs text-muted"
+            >
+              {isCompact ? 'Comfortable' : 'Compact'}
+            </Button>
+            <span className="text-muted text-xs tabular-nums">
+              Showing <strong className="text-text font-semibold">{staffList.length}</strong> staff
+            </span>
+          </div>
         </div>
 
         {/* Staff Table */}
-        <Card className="border-slate-800 bg-slate-900/40 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[11px]">
-                <tr>
-                  <th className="py-3 px-4">Staff Member</th>
-                  <th className="py-3 px-4">Role Key</th>
-                  <th className="py-3 px-4">Landing Hub</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="py-12 text-center text-slate-500">
-                      Loading staff users...
-                    </td>
-                  </tr>
-                ) : staffList.length > 0 ? (
-                  staffList.map((user: any) => (
-                    <tr key={user.id} className="hover:bg-slate-850/50">
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-white">{user.name}</div>
-                        <div className="text-[11px] text-slate-400">{user.email}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge
-                          variant={
-                            user.role?.key === 'admin'
-                              ? 'destructive'
-                              : user.role?.key === 'kitchen'
-                              ? 'warning'
-                              : user.role?.key === 'dispatch'
-                              ? 'info'
-                              : 'default'
-                          }
-                          className="capitalize text-[10px]"
-                        >
-                          {user.role?.name || user.role?.key}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-slate-300 font-mono text-[11px]">
+        <div className="bg-surface border border-border rounded-lg overflow-hidden">
+          {isLoading ? (
+            <div className="p-4 space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : staffList.length === 0 ? (
+            <EmptyState
+              icon={Shield}
+              title="No staff users found"
+              description="Create user accounts for internal kitchen and dispatch personnel."
+              actionLabel="Add staff user"
+              onAction={openCreate}
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <Table compact={isCompact}>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Staff member</TableHead>
+                    <TableHead className="w-32">Role</TableHead>
+                    <TableHead className="w-40">Landing hub</TableHead>
+                    <TableHead className="w-28">Status</TableHead>
+                    <TableHead className="w-24 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {staffList.map((user: any) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div className="font-medium text-text">{user.name}</div>
+                        <div className="text-xs text-muted font-mono">{user.email}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Chip>{user.role?.name || user.role?.key}</Chip>
+                      </TableCell>
+                      <TableCell className="text-muted font-mono text-xs">
                         {user.role?.landingPath || '/home'}
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge variant={user.active ? 'default' : 'secondary'} className="text-[10px]">
-                          {user.active ? 'Active' : 'Disabled'}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-right">
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          status={user.active ? 'Ready' : 'Cancelled'}
+                          label={user.active ? 'Active' : 'Disabled'}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           onClick={() => openEdit(user)}
-                          className="h-7 text-xs px-2.5"
+                          className="h-7 text-xs px-2 text-muted"
                         >
-                          <Edit className="w-3 h-3 mr-1" /> Edit
+                          <Edit className="w-3.5 h-3.5" />
                         </Button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="py-12 text-center text-slate-500">
-                      No staff users found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        {/* Add/Edit Staff Modal */}
-        <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>{editingStaff ? 'Edit Staff User' : 'Add Staff User'}</DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-3 py-2 text-xs">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Rahul Sharma"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Staff Email *</label>
-                <input
-                  type="email"
-                  required
-                  disabled={!!editingStaff}
-                  placeholder="e.g. rahul@fernleaf.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white disabled:opacity-50"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  {editingStaff ? 'New Password (Leave blank to keep current)' : 'Password *'}
-                </label>
-                <input
-                  type="password"
-                  placeholder={editingStaff ? '••••••••' : 'Minimum 8 characters'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Assigned Role *</label>
-                <select
-                  value={roleKey}
-                  onChange={(e) => setRoleKey(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white capitalize"
-                >
-                  {rolesData?.map((r) => (
-                    <option key={r.id} value={r.key}>
-                      {r.name} ({r.key})
-                    </option>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </select>
-              </div>
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
-              {editingStaff && (
-                <div className="pt-2 border-t border-slate-800">
-                  <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={active}
-                      onChange={(e) => setActive(e.target.checked)}
-                      className="rounded bg-slate-950 border-slate-700 text-emerald-500"
-                    />
-                    <span>Account Active</span>
-                  </label>
-                </div>
-              )}
+          <div className="h-10 px-4 border-t border-border flex items-center justify-between text-xs text-muted">
+            <span>Showing 1–{staffList.length} of {staffList.length}</span>
+          </div>
+        </div>
+
+        {/* Add/Edit Staff Drawer */}
+        <Drawer
+          open={drawerOpen}
+          onClose={() => {
+            setDrawerOpen(false);
+            setEditingStaff(null);
+          }}
+          title={editingStaff ? 'Edit staff user' : 'Add staff user'}
+        >
+          <div className="space-y-4 text-xs">
+            <div>
+              <label className="text-xs font-medium text-text block mb-1">Full name *</label>
+              <Input
+                required
+                placeholder="e.g. Rahul Sharma"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             </div>
 
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setAddModalOpen(false)}>
+            <div>
+              <label className="text-xs font-medium text-text block mb-1">Email address *</label>
+              <Input
+                type="email"
+                required
+                placeholder="e.g. rahul@fernleafkitchen.internal"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-text block mb-1">
+                {editingStaff ? 'Password (leave blank to keep unchanged)' : 'Initial password *'}
+              </label>
+              <Input
+                type="password"
+                placeholder={editingStaff ? '••••••••' : 'Minimum 8 characters'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-text block mb-1">Operational role</label>
+              <select
+                value={roleKey}
+                onChange={(e) => setRoleKey(e.target.value)}
+                className="w-full h-8 px-2.5 bg-app border border-border rounded-md text-xs text-text focus:outline-none focus:ring-1 focus:ring-brand-solid"
+              >
+                {rolesData?.map((r) => (
+                  <option key={r.id || r.key} value={r.key}>
+                    {r.name} ({r.key})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="pt-2 border-t border-border">
+              <label className="flex items-center gap-2 text-text cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={(e) => setActive(e.target.checked)}
+                  className="rounded bg-app border-border text-brand-solid focus:ring-brand-solid"
+                />
+                <span>Active account (permitted to log in)</span>
+              </label>
+            </div>
+
+            <div className="pt-4 border-t border-border flex items-center justify-end gap-2 mt-6">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setDrawerOpen(false);
+                  setEditingStaff(null);
+                }}
+              >
                 Cancel
               </Button>
               <Button
-                disabled={!name.trim() || (!editingStaff && !password.trim())}
+                disabled={!name.trim() || !email.trim() || (!editingStaff && !password)}
                 onClick={() => {
                   if (editingStaff) {
                     updateMutation.mutate({
                       id: editingStaff.id,
                       payload: {
                         name,
+                        email,
+                        password: password || undefined,
                         roleKey,
                         active,
-                        password: password || undefined,
                       },
                     });
                   } else {
@@ -300,16 +332,17 @@ export default function StaffPage() {
                       email,
                       password,
                       roleKey,
+                      active,
                     });
                   }
                 }}
                 loading={createMutation.isPending || updateMutation.isPending}
               >
-                {editingStaff ? 'Save Changes' : 'Create User'}
+                {editingStaff ? 'Save changes' : 'Create user'}
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </div>
+          </div>
+        </Drawer>
       </div>
     </AppShell>
   );

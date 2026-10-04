@@ -2,27 +2,22 @@
 
 import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageHeader } from '@/components/shell/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
-  Sliders,
-  Calendar,
-  Clock,
   Play,
   RotateCcw,
   Plus,
   Trash2,
-  AlertTriangle,
-  CheckCircle2,
   RefreshCw,
-  Sparkles,
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -40,7 +35,7 @@ export default function SettingsPage() {
   const [holidayName, setHolidayName] = useState('');
 
   // 1. Fetch Settings
-  const { data: settings, isLoading: settingsLoading } = useQuery<any>({
+  const { data: settings } = useQuery<any>({
     queryKey: ['settings'],
     queryFn: () => fetchApi('/settings'),
   });
@@ -87,7 +82,7 @@ export default function SettingsPage() {
       }),
     onSuccess: (data) => {
       setCutoffResult(data);
-      toast.success(`Cut-off processed for ${data.date}!`);
+      toast.success(`Cut-off processed for ${data.date}`);
       queryClient.invalidateQueries();
     },
     onError: (err: any) => toast.error(err.message || 'Failed to execute cut-off'),
@@ -107,7 +102,7 @@ export default function SettingsPage() {
   const reseedMutation = useMutation({
     mutationFn: () => fetchApi('/admin/reseed', { method: 'POST' }),
     onSuccess: () => {
-      toast.success('Demo data reseeded relative to today!');
+      toast.success('Demo data reseeded relative to today');
       queryClient.invalidateQueries();
     },
     onError: (err: any) => toast.error(err.message || 'Failed to reseed demo data'),
@@ -142,93 +137,78 @@ export default function SettingsPage() {
 
   return (
     <AppShell requiredPermission="settings:read">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <Sliders className="w-6 h-6 text-emerald-400" />
-              <span>Platform Settings & Cut-off</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Cut-off algorithm parameters, kitchen holidays calendar, and manual execution triggers
-            </p>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => reseedMutation.mutate()}
-            loading={reseedMutation.isPending}
-            className="text-xs"
-          >
-            <RefreshCw className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
-            Reseed Demo Data
-          </Button>
-        </div>
+      <div className="space-y-4">
+        {/* Header with Reseed Demo in overflow menu */}
+        <PageHeader
+          title="Platform Settings & Cut-off"
+          subtitle="Cut-off algorithm parameters, kitchen holidays calendar, and manual execution triggers"
+          demoActions={[
+            {
+              label: 'Reseed demo data',
+              onClick: () => reseedMutation.mutate(),
+            },
+          ]}
+        />
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="bg-slate-900 border border-slate-800">
-            <TabsTrigger value="platform" className="text-xs">
-              Platform Configuration
+          <TabsList>
+            <TabsTrigger value="platform">
+              Platform configuration
             </TabsTrigger>
-            <TabsTrigger value="cutoff" className="text-xs">
-              Manual Cut-off Trigger
+            <TabsTrigger value="cutoff">
+              Manual cut-off trigger
             </TabsTrigger>
-            <TabsTrigger value="holidays" className="text-xs">
-              Kitchen Holidays ({holidays?.length || 0})
+            <TabsTrigger value="holidays">
+              Kitchen holidays ({holidays?.length || 0})
             </TabsTrigger>
           </TabsList>
 
           {/* TAB 1: Platform Configuration */}
           <TabsContent value="platform" className="space-y-4">
-            <Card className="p-6 bg-slate-900/60 border-slate-800 space-y-6">
-              <h3 className="font-semibold text-sm text-white">Cut-off & Operational Parameters</h3>
+            <div className="bg-surface border border-border rounded-lg p-5 space-y-5">
+              <div className="font-semibold text-sm text-text">Cut-off & operational parameters</div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
                 {/* Timezone */}
                 <div>
-                  <label className="font-semibold text-slate-300 block mb-1">
-                    Kitchen Primary Timezone
+                  <label className="font-medium text-text block mb-1">
+                    Kitchen primary timezone
                   </label>
-                  <input
-                    type="text"
+                  <Input
                     defaultValue={settings?.timezone || 'Asia/Kolkata'}
                     onBlur={(e) =>
                       updateSettingMutation.mutate({ key: 'timezone', value: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">
+                  <p className="text-[11px] text-muted mt-1">
                     Standard IANA timezone string. All working days and cut-offs calculate in this zone.
                   </p>
                 </div>
 
                 {/* Cut-off Time */}
                 <div>
-                  <label className="font-semibold text-slate-300 block mb-1">
-                    Cut-off Time of Day
+                  <label className="font-medium text-text block mb-1">
+                    Cut-off time of day
                   </label>
-                  <input
+                  <Input
                     type="time"
                     defaultValue={settings?.cutoffTime || '16:00'}
                     onBlur={(e) =>
                       updateSettingMutation.mutate({ key: 'cutoffTime', value: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">
+                  <p className="text-[11px] text-muted mt-1">
                     Time when orders lock for delivery.
                   </p>
                 </div>
 
                 {/* Cut-off Days */}
                 <div>
-                  <label className="font-semibold text-slate-300 block mb-1">
-                    Cut-off Days Count (Kitchen Working Days Back)
+                  <label className="font-medium text-text block mb-1">
+                    Cut-off days count (kitchen working days back)
                   </label>
-                  <input
+                  <Input
                     type="number"
                     min={0}
                     max={14}
@@ -239,19 +219,18 @@ export default function SettingsPage() {
                         value: parseInt(e.target.value, 10),
                       })
                     }
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Counts back ONLY kitchen working days and skips kitchen holidays.
+                  <p className="text-[11px] text-muted mt-1">
+                    Counts back only kitchen working days and skips kitchen holidays.
                   </p>
                 </div>
 
                 {/* Kitchen Buffer Minutes */}
                 <div>
-                  <label className="font-semibold text-slate-300 block mb-1">
-                    Kitchen Buffer (Minutes before Dispatch Ready)
+                  <label className="font-medium text-text block mb-1">
+                    Kitchen buffer (minutes before dispatch ready)
                   </label>
-                  <input
+                  <Input
                     type="number"
                     min={10}
                     max={120}
@@ -262,19 +241,18 @@ export default function SettingsPage() {
                         value: parseInt(e.target.value, 10),
                       })
                     }
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">
+                  <p className="text-[11px] text-muted mt-1">
                     Target kitchen completion buffer before dispatch packaging.
                   </p>
                 </div>
 
                 {/* At-Risk Window Minutes */}
                 <div>
-                  <label className="font-semibold text-slate-300 block mb-1">
-                    Kitchen At-Risk Window (Minutes)
+                  <label className="font-medium text-text block mb-1">
+                    Kitchen at-risk window (minutes)
                   </label>
-                  <input
+                  <Input
                     type="number"
                     min={15}
                     max={180}
@@ -285,19 +263,18 @@ export default function SettingsPage() {
                         value: parseInt(e.target.value, 10),
                       })
                     }
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">
+                  <p className="text-[11px] text-muted mt-1">
                     Orders with unstarted units within this window show amber &quot;At Risk&quot; warning.
                   </p>
                 </div>
 
                 {/* On-Time Delivery Grace Minutes */}
                 <div>
-                  <label className="font-semibold text-slate-300 block mb-1">
-                    Delivery On-Time Grace Window (Minutes)
+                  <label className="font-medium text-text block mb-1">
+                    Delivery on-time grace window (minutes)
                   </label>
-                  <input
+                  <Input
                     type="number"
                     min={0}
                     max={30}
@@ -308,46 +285,44 @@ export default function SettingsPage() {
                         value: parseInt(e.target.value, 10),
                       })
                     }
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">
+                  <p className="text-[11px] text-muted mt-1">
                     Grace window past delivery time where delivery is still flagged on-time.
                   </p>
                 </div>
               </div>
-            </Card>
+            </div>
           </TabsContent>
 
           {/* TAB 2: Manual Cut-off Trigger */}
           <TabsContent value="cutoff" className="space-y-4">
-            <Card className="p-6 bg-slate-900/60 border-slate-800 space-y-6">
+            <div className="bg-surface border border-border rounded-lg p-5 space-y-4">
               <div>
-                <h3 className="font-semibold text-sm text-white">Manual Cut-off Processing</h3>
-                <p className="text-xs text-slate-400">
+                <div className="font-semibold text-sm text-text">Manual cut-off processing</div>
+                <p className="text-xs text-muted mt-0.5">
                   Trigger cut-off processing for a delivery date on demand. Cancels draft orders, confirms placed orders, and creates dispatch drops.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 <div>
-                  <label className="font-semibold text-slate-300 block mb-1">
-                    Target Delivery Date
+                  <label className="font-medium text-text block mb-1">
+                    Target delivery date
                   </label>
-                  <input
+                  <Input
                     type="date"
                     value={cutoffDate}
                     onChange={(e) => setCutoffDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
                   />
                 </div>
 
                 <div className="flex items-center pt-5">
-                  <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+                  <label className="flex items-center gap-2 text-text cursor-pointer">
                     <input
                       type="checkbox"
                       checked={forceCutoff}
                       onChange={(e) => setForceCutoff(e.target.checked)}
-                      className="rounded bg-slate-950 border-slate-700 text-emerald-500"
+                      className="rounded bg-app border-border text-brand-solid focus:ring-brand-solid"
                     />
                     <span>Force execution (Process even if cut-off window has not naturally passed)</span>
                   </label>
@@ -363,87 +338,85 @@ export default function SettingsPage() {
                     })
                   }
                   loading={runCutoffMutation.isPending}
-                  className="text-xs bg-emerald-600 hover:bg-emerald-500"
                 >
-                  <Play className="w-3.5 h-3.5 mr-1" />
-                  Run Cut-off for {cutoffDate}
+                  <Play className="w-3.5 h-3.5 mr-1.5" />
+                  Run cut-off for {cutoffDate}
                 </Button>
 
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => sweepCutoffMutation.mutate()}
                   loading={sweepCutoffMutation.isPending}
-                  className="text-xs"
                 >
-                  <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                  Run Sweep (Find all unprocessed dates)
+                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                  Run sweep
                 </Button>
               </div>
 
               {/* Execution Results Banner */}
               {cutoffResult && (
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-2 mt-4">
-                  <div className="font-semibold text-emerald-400 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4" /> Cut-off Execution Output:
+                <div className="p-4 rounded-lg bg-raised border border-border text-xs space-y-2 mt-4">
+                  <div className="font-semibold text-text flex items-center gap-1.5">
+                    Cut-off execution output:
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-slate-300">
-                    <div className="p-2 rounded bg-slate-900 border border-slate-800">
-                      <div className="text-[10px] text-slate-400">Date Processed</div>
-                      <div className="font-bold text-white">{cutoffResult.date}</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                    <div className="p-2.5 rounded bg-surface border border-border">
+                      <div className="text-[10px] text-muted uppercase tracking-wider">Date processed</div>
+                      <div className="font-semibold text-text tabular-nums">{cutoffResult.date}</div>
                     </div>
-                    <div className="p-2 rounded bg-slate-900 border border-slate-800">
-                      <div className="text-[10px] text-slate-400">Orders Confirmed</div>
-                      <div className="font-bold text-emerald-400">
+                    <div className="p-2.5 rounded bg-surface border border-border">
+                      <div className="text-[10px] text-muted uppercase tracking-wider">Orders confirmed</div>
+                      <div className="font-semibold text-text tabular-nums">
                         {cutoffResult.confirmedCount ?? cutoffResult.ordersConfirmed ?? 0}
                       </div>
                     </div>
-                    <div className="p-2 rounded bg-slate-900 border border-slate-800">
-                      <div className="text-[10px] text-slate-400">Drafts Cancelled</div>
-                      <div className="font-bold text-rose-400">
+                    <div className="p-2.5 rounded bg-surface border border-border">
+                      <div className="text-[10px] text-muted uppercase tracking-wider">Drafts cancelled</div>
+                      <div className="font-semibold text-text tabular-nums">
                         {cutoffResult.cancelledCount ?? cutoffResult.draftsCancelled ?? 0}
                       </div>
                     </div>
-                    <div className="p-2 rounded bg-slate-900 border border-slate-800">
-                      <div className="text-[10px] text-slate-400">Status</div>
-                      <div className="font-bold text-white">
-                        {cutoffResult.skipped ? 'Skipped (Already Processed)' : 'Success'}
+                    <div className="p-2.5 rounded bg-surface border border-border">
+                      <div className="text-[10px] text-muted uppercase tracking-wider">Status</div>
+                      <div className="font-semibold text-text">
+                        {cutoffResult.skipped ? 'Skipped' : 'Success'}
                       </div>
                     </div>
                   </div>
                 </div>
               )}
-            </Card>
+            </div>
           </TabsContent>
 
           {/* TAB 3: Kitchen Holidays */}
           <TabsContent value="holidays" className="space-y-4">
-            <Card className="p-6 bg-slate-900/60 border-slate-800 space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="bg-surface border border-border rounded-lg overflow-hidden">
+              <div className="p-4 border-b border-border flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-sm text-white">Kitchen Working Holidays</h3>
-                  <p className="text-xs text-slate-400">
+                  <div className="font-semibold text-sm text-text">Kitchen working holidays</div>
+                  <div className="text-xs text-muted mt-0.5">
                     Commercial kitchen closures. These dates are skipped when counting back cut-off days.
-                  </p>
+                  </div>
                 </div>
-                <Button size="sm" onClick={() => setHolidayModalOpen(true)} className="text-xs">
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Holiday
+                <Button size="sm" onClick={() => setHolidayModalOpen(true)}>
+                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Add holiday
                 </Button>
               </div>
 
-              <div className="divide-y divide-slate-800 border border-slate-800 rounded-lg overflow-hidden">
+              <div className="divide-y divide-border">
                 {holidaysLoading ? (
-                  <div className="py-12 text-center text-slate-500 text-xs">
-                    Loading kitchen holidays...
+                  <div className="py-12 text-center text-muted text-xs">
+                    Loading kitchen holidays…
                   </div>
                 ) : holidays && holidays.length > 0 ? (
                   holidays.map((h) => (
                     <div
                       key={h.date}
-                      className="p-3 bg-slate-950/60 flex items-center justify-between text-xs"
+                      className="h-11 px-4 flex items-center justify-between text-xs hover:bg-raised transition-colors"
                     >
-                      <div>
-                        <span className="font-semibold text-slate-200">{h.name}</span>
-                        <span className="text-[11px] text-emerald-400 ml-3">
+                      <div className="flex items-center gap-3">
+                        <span className="font-medium text-text">{h.name}</span>
+                        <span className="font-mono text-muted text-xs tabular-nums">
                           {formatDate(h.date)}
                         </span>
                       </div>
@@ -451,19 +424,19 @@ export default function SettingsPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => deleteHolidayMutation.mutate(h.date)}
-                        className="h-7 text-rose-400 hover:text-rose-300"
+                        className="h-7 px-2 text-xs text-danger hover:text-danger"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   ))
                 ) : (
-                  <div className="py-8 text-center text-slate-500 text-xs">
+                  <div className="py-8 text-center text-muted text-xs">
                     No kitchen holidays configured.
                   </div>
                 )}
               </div>
-            </Card>
+            </div>
           </TabsContent>
         </Tabs>
 
@@ -471,32 +444,29 @@ export default function SettingsPage() {
         <Dialog open={holidayModalOpen} onOpenChange={setHolidayModalOpen}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>Add Kitchen Holiday</DialogTitle>
+              <DialogTitle>Add kitchen holiday</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-3 py-2 text-xs">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Date *</label>
-                <input
+                <label className="text-xs font-medium text-text block mb-1">Date *</label>
+                <Input
                   type="date"
                   required
                   value={holidayDate}
                   onChange={(e) => setHolidayDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Holiday / Closure Name *
+                <label className="text-xs font-medium text-text block mb-1">
+                  Holiday / closure name *
                 </label>
-                <input
-                  type="text"
+                <Input
                   required
                   placeholder="e.g. Diwali Kitchen Closure"
                   value={holidayName}
                   onChange={(e) => setHolidayName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
             </div>
@@ -515,7 +485,7 @@ export default function SettingsPage() {
                 }
                 loading={addHolidayMutation.isPending}
               >
-                Save Holiday
+                Save holiday
               </Button>
             </DialogFooter>
           </DialogContent>

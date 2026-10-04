@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Loader2 } from 'lucide-react';
 
 export default function HomePage() {
   const router = useRouter();
@@ -20,9 +19,9 @@ export default function HomePage() {
   }, [user, landingPath, isLoading, router]);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
-      <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
-      <p className="text-xs font-medium">Navigating to your workspace...</p>
+    <div className="min-h-screen bg-app flex flex-col items-center justify-center text-muted gap-2">
+      <div className="w-5 h-5 border-2 border-border border-t-brand-solid rounded-full animate-spin" />
+      <p className="text-xs font-medium text-muted">Navigating to workspace…</p>
     </div>
   );
 }

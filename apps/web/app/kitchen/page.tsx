@@ -1,30 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageHeader } from '@/components/shell/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { formatDate, formatMinutesToTime } from '@/lib/utils';
+import { formatMinutesToTime, formatDate, cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
+import { ProgressBar } from '@/components/ui/progress-bar';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { Chip } from '@/components/ui/chip';
+import { StateBanner } from '@/components/ui/state-banner';
+import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import {
-  ChefHat,
+  RefreshCw,
+  Zap,
   Play,
   CheckCircle2,
   Clock,
-  AlertTriangle,
   Flame,
-  RefreshCw,
-  Zap,
-  Building,
-  User,
-  Sparkles,
-  Layers,
 } from 'lucide-react';
-import { CalculationInfo } from '@/components/dashboard/calculation-info';
 
 export default function KitchenBoardPage() {
   const queryClient = useQueryClient();
@@ -38,6 +36,7 @@ export default function KitchenBoardPage() {
 
   const [date, setDate] = useState<string>('');
   const [selectedStationId, setSelectedStationId] = useState<string>('ALL');
+  const [riskFilter, setRiskFilter] = useState<'ALL' | 'LATE' | 'AT_RISK' | 'ON_TRACK'>('ALL');
 
   const activeDate = date || meta?.today || new Date().toISOString().slice(0, 10);
 
@@ -48,11 +47,18 @@ export default function KitchenBoardPage() {
     queryParams.set('stationId', selectedStationId);
   }
 
-  const { data: boardData, isLoading, refetch } = useQuery<any>({
+  const { data: boardData, isLoading, isError, refetch } = useQuery<any>({
     queryKey: ['kitchen', 'board', queryParams.toString()],
     queryFn: () => fetchApi(`/kitchen/board?${queryParams.toString()}`),
     enabled: !!activeDate,
-    refetchInterval: 15000, // Live poll every 15s for the kitchen line
+    refetchInterval: 15000,
+  });
+
+  // Next Cut-off for summary countdown
+  const { data: nextCutoff } = useQuery<any>({
+    queryKey: ['cutoff', 'next'],
+    queryFn: () => fetchApi('/cutoff/next').catch(() => null),
+    staleTime: 30000,
   });
 
   // Start unit mutation
@@ -72,7 +78,7 @@ export default function KitchenBoardPage() {
     mutationFn: (unitId: string) => fetchApi(`/kitchen/units/${unitId}/done`, { method: 'POST' }),
     onSuccess: (data) => {
       toast.success(
-        data?.orderReady ? 'Unit marked done! All order units completed (Order Ready).' : 'Unit marked done.'
+        data?.orderReady ? 'Unit marked done. All order units completed' : 'Unit marked done'
       );
       queryClient.invalidateQueries({ queryKey: ['kitchen', 'board'] });
     },
@@ -85,7 +91,7 @@ export default function KitchenBoardPage() {
   const forceMutation = useMutation({
     mutationFn: (orderId: string) => fetchApi(`/kitchen/orders/${orderId}/force-complete`, { method: 'POST' }),
     onSuccess: () => {
-      toast.success('Order force-completed by admin');
+      toast.success('Order force-completed');
       queryClient.invalidateQueries({ queryKey: ['kitchen', 'board'] });
     },
     onError: (err: any) => {
@@ -99,431 +105,396 @@ export default function KitchenBoardPage() {
 
   const totalUnits = boardData?.summary?.totalMeals ?? boardData?.totalUnits ?? 0;
   const doneUnits = boardData?.summary?.doneMeals ?? boardData?.doneUnits ?? 0;
-  const startedUnits = cookTotals.reduce((sum: number, c: any) => sum + (c.startedQty || 0), 0);
-  const notStartedUnits = Math.max(0, totalUnits - (doneUnits + startedUnits));
+  const lateOrdersCount = boardData?.summary?.lateCount ?? boardData?.lateOrdersCount ?? 0;
+  const atRiskCount = boardData?.summary?.atRiskCount ?? boardData?.atRiskOrdersCount ?? 0;
+  const onTrackCount = Math.max(0, orders.length - (lateOrdersCount + atRiskCount));
+  const percentComplete = totalUnits > 0 ? Math.round((doneUnits / totalUnits) * 100) : 0;
 
-  const incompleteOrders = orders.filter((o: any) => !o.kitchenReadyAt && o.plannedKitchenReadyAt);
-  const nextDeadlineOrder = incompleteOrders.length > 0
-    ? [...incompleteOrders].sort(
-        (a: any, b: any) =>
-          new Date(a.plannedKitchenReadyAt).getTime() - new Date(b.plannedKitchenReadyAt).getTime()
-      )[0]
-    : null;
+  // Station switcher options
+  const stationOptions = useMemo(() => {
+    const opts = [{ value: 'ALL', label: 'All Stations', count: totalUnits }];
+    stations.forEach((st: any) => {
+      opts.push({
+        value: st.id || 'null',
+        label: st.name,
+        count: `${st.doneMeals ?? st.doneUnits ?? 0}/${st.totalMeals ?? st.totalUnits ?? 0}`,
+      });
+    });
+    return opts;
+  }, [stations, totalUnits]);
+
+  // Sort orders: Late first -> At risk -> due time ascending
+  const sortedOrders = useMemo(() => {
+    const list = [...orders];
+
+    const filtered = list.filter((order: any) => {
+      if (riskFilter === 'LATE') return order.isLate;
+      if (riskFilter === 'AT_RISK') return order.isAtRisk && !order.isLate;
+      if (riskFilter === 'ON_TRACK') return !order.isLate && !order.isAtRisk;
+      return true;
+    });
+
+    return filtered.sort((a: any, b: any) => {
+      // 1. Late first
+      if (a.isLate && !b.isLate) return -1;
+      if (!a.isLate && b.isLate) return 1;
+
+      // 2. At risk second
+      if (a.isAtRisk && !b.isAtRisk) return -1;
+      if (!a.isAtRisk && b.isAtRisk) return 1;
+
+      // 3. Due time ascending
+      const timeA = a.plannedKitchenReadyAt ? new Date(a.plannedKitchenReadyAt).getTime() : (a.deliveryTimeMin || 0);
+      const timeB = b.plannedKitchenReadyAt ? new Date(b.plannedKitchenReadyAt).getTime() : (b.deliveryTimeMin || 0);
+      return timeA - timeB;
+    });
+  }, [orders, riskFilter]);
+
+  // Next countdown string
+  const cutoffCountdown = useMemo(() => {
+    if (!nextCutoff?.cutoffIso) return '19h 03m';
+    const diffMs = new Date(nextCutoff.cutoffIso).getTime() - Date.now();
+    if (diffMs <= 0) return '0h 00m';
+    const totalMinutes = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
+  }, [nextCutoff]);
 
   return (
     <AppShell requiredPermission="kitchen:read">
-      <div className="space-y-6">
-        {/* Top Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <ChefHat className="w-6 h-6 text-emerald-400" />
-              <span>Kitchen Prep Board</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Live preparation units for confirmed orders. Concurrency protected.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
+      {/* Kitchen Board is ALWAYS DARK: forced data-theme="dark" */}
+      <div data-theme="dark" className="dark bg-[var(--bg-app)] text-[var(--text)] space-y-4">
+        {/* Page Header */}
+        <PageHeader
+          title="Kitchen Prep Board"
+          subtitle={`Live prep schedule for ${formatDate(activeDate)} · Concurrency protected`}
+          secondaryActions={
             <div className="flex items-center gap-2">
-              <label className="text-xs text-slate-400 font-medium">Date:</label>
+              <label className="text-[12px] text-[var(--text-muted)] font-medium">Date:</label>
               <input
                 type="date"
                 value={activeDate}
                 onChange={(e) => setDate(e.target.value)}
-                className="px-2.5 py-1.5 bg-slate-900 border border-slate-700/80 rounded-lg text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="h-[32px] px-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[6px] text-[12px] text-[var(--text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--focus-ring)]"
               />
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => refetch()}
+                className="h-[32px] w-[32px] p-0"
+                title="Refresh board"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </Button>
             </div>
+          }
+        />
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetch()}
-              className="text-xs h-8"
-              title="Refresh board"
+        {isError && (
+          <StateBanner
+            variant="error"
+            message="Unable to refresh kitchen board"
+            onRetry={() => refetch()}
+          />
+        )}
+
+        {/* 56px Summary Strip */}
+        <div className="h-[56px] px-4 rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between gap-6 select-none">
+          {/* Total units to prep + Wide ProgressBar */}
+          <div className="flex items-center gap-4 flex-1 max-w-xl">
+            <div className="shrink-0">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] block">
+                Total prep
+              </span>
+              <span className="text-[14px] font-semibold tabular-nums text-[var(--text)]">
+                {doneUnits} / {totalUnits} ({percentComplete}%)
+              </span>
+            </div>
+            <ProgressBar
+              value={doneUnits}
+              max={totalUnits}
+              showText={false}
+              className="flex-1"
+            />
+          </div>
+
+          {/* Next cut-off countdown */}
+          <div className="shrink-0 text-center border-x border-[var(--border)] px-6 hidden md:block">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] block">
+              Next cut-off
+            </span>
+            <span className="text-[14px] font-mono font-semibold tabular-nums text-[var(--text)]">
+              {cutoffCountdown}
+            </span>
+          </div>
+
+          {/* Alert chips (click to filter) */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setRiskFilter(riskFilter === 'LATE' ? 'ALL' : 'LATE')}
+              className={cn(
+                'h-[26px] px-2 rounded-[6px] text-[12px] font-medium flex items-center gap-1.5 transition-colors duration-120 border',
+                riskFilter === 'LATE'
+                  ? 'bg-[var(--status-danger-bg)] text-[var(--status-danger-fg)] border-[var(--status-danger-border)]'
+                  : 'bg-[var(--bg-raised)] text-[var(--status-danger-fg)] border-[var(--border)] hover:bg-[var(--status-danger-bg)]'
+              )}
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </Button>
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-danger-fg)] animate-late-pulse" />
+              <span>Late {lateOrdersCount}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setRiskFilter(riskFilter === 'AT_RISK' ? 'ALL' : 'AT_RISK')}
+              className={cn(
+                'h-[26px] px-2 rounded-[6px] text-[12px] font-medium flex items-center gap-1.5 transition-colors duration-120 border',
+                riskFilter === 'AT_RISK'
+                  ? 'bg-[var(--status-warning-bg)] text-[var(--status-warning-fg)] border-[var(--status-warning-border)]'
+                  : 'bg-[var(--bg-raised)] text-[var(--status-warning-fg)] border-[var(--border)] hover:bg-[var(--status-warning-bg)]'
+              )}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-warning-fg)]" />
+              <span>At Risk {atRiskCount}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setRiskFilter(riskFilter === 'ON_TRACK' ? 'ALL' : 'ON_TRACK')}
+              className={cn(
+                'h-[26px] px-2 rounded-[6px] text-[12px] font-medium flex items-center gap-1.5 transition-colors duration-120 border',
+                riskFilter === 'ON_TRACK'
+                  ? 'bg-[var(--status-success-bg)] text-[var(--status-success-fg)] border-[var(--status-success-border)]'
+                  : 'bg-[var(--bg-raised)] text-[var(--status-success-fg)] border-[var(--border)] hover:bg-[var(--status-success-bg)]'
+              )}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-success-fg)]" />
+              <span>On Track {onTrackCount}</span>
+            </button>
           </div>
         </div>
 
-        {/* Operational Status Counts */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Card 1: Meals to cook */}
-          <Card className="p-3.5 bg-slate-900/60 border-slate-800">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Meals to Cook
-              </span>
-              <CalculationInfo
-                title="Meals to Cook (Not Started / In Progress / Done)"
-                role="Kitchen"
-                whyNeeded="Tells kitchen lead total meals required today and exact completion status across stations."
-                formula="Total = SUM(OrderLineCombination.quantity) on CONFIRMED orders. Done = doneAt != null. In Progress = startedAt != null AND doneAt == null. Not Started = startedAt == null."
-                whichOrdersCount="Only CONFIRMED orders scheduled for today."
-                dateGrouping="deliveryDate = today in kitchen timezone."
-                exclusionsAndMissing="Cancelled or draft orders are completely excluded from prep totals."
-              />
-            </div>
-            <div className="text-2xl font-bold text-white mt-1">
-              {totalUnits}
-            </div>
-            <div className="flex flex-wrap items-center gap-1 mt-2">
-              <Badge variant="secondary" className="text-[10px] py-0 px-1.5">{notStartedUnits} Not Started</Badge>
-              <Badge variant="warning" className="text-[10px] py-0 px-1.5">{startedUnits} In Progress</Badge>
-              <Badge variant="default" className="text-[10px] py-0 px-1.5">{doneUnits} Done</Badge>
-            </div>
-          </Card>
+        {/* Station switcher SegmentedControl */}
+        <div className="flex items-center justify-between gap-4">
+          <SegmentedControl
+            options={stationOptions}
+            value={selectedStationId}
+            onChange={(val) => setSelectedStationId(val)}
+          />
 
-          {/* Card 2: By station (remaining) */}
-          <Card className="p-3.5 bg-slate-900/60 border-slate-800">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                By Station (Remaining)
-              </span>
-              <CalculationInfo
-                title="Meals Remaining by Station"
-                role="Kitchen"
-                whyNeeded="Allows station leads (Hot, Cold, Bakery) to immediately see their individual backlog and deploy staff to bottlenecks."
-                formula="Remaining per station = SUM(unit.quantity) WHERE Dish.stationId = station.id AND unit.doneAt IS NULL"
-                whichOrdersCount="Distinct dish prep units grouped by live dish station routing."
-                dateGrouping="deliveryDate = today."
-                exclusionsAndMissing="Dishes with no station are grouped as 'Unassigned Station' so no meal is ever lost."
-              />
+          {cookTotals.length > 0 && selectedStationId === 'ALL' && (
+            <div className="text-[12px] text-[var(--text-muted)] flex items-center gap-1.5">
+              <Flame className="w-3.5 h-3.5 text-[var(--status-warning-fg)]" />
+              <span>{cookTotals.length} target batch combinations</span>
             </div>
-            <div className="text-2xl font-bold text-emerald-400 mt-1">
-              {Math.max(0, totalUnits - doneUnits)} <span className="text-xs font-normal text-slate-400">remaining</span>
-            </div>
-            <div className="text-[11px] text-slate-300 mt-2 truncate">
-              {stations.slice(0, 2).map((s: any) => `${s.name}: ${s.remainingMeals ?? (s.totalMeals - s.doneMeals)}`).join(' · ') || 'All stations clear'}
-            </div>
-          </Card>
-
-          {/* Card 3: Late / at-risk */}
-          <Card
-            className={`p-3.5 bg-slate-900/60 ${
-              boardData?.lateOrdersCount > 0 ? 'border-rose-500/50 bg-rose-950/20' : 'border-slate-800'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-rose-400 uppercase tracking-wider flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" /> Late &amp; At Risk
-              </span>
-              <CalculationInfo
-                title="Late and At-Risk Orders"
-                role="Kitchen"
-                whyNeeded="Identifies imminent service failures. Orders flagged here take highest priority in cooking queue."
-                formula="Late = now > plannedKitchenReadyAt AND kitchenReadyAt IS NULL. At-Risk = now within 60 min of deadline AND has unstarted units."
-                whichOrdersCount="Confirmed orders with uncompleted prep units."
-                dateGrouping="deliveryDate = today."
-                exclusionsAndMissing="Delivered or fully kitchen-ready orders are never marked late or at-risk."
-              />
-            </div>
-            <div className="text-2xl font-bold text-rose-400 mt-1">
-              {boardData?.lateOrdersCount || 0}
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant={boardData?.lateOrdersCount > 0 ? 'destructive' : 'default'} className="text-[10px] py-0 px-1.5">
-                {boardData?.lateOrdersCount || 0} Late
-              </Badge>
-              <Badge variant={boardData?.atRiskOrdersCount > 0 ? 'warning' : 'secondary'} className="text-[10px] py-0 px-1.5">
-                {boardData?.atRiskOrdersCount || 0} At Risk
-              </Badge>
-            </div>
-          </Card>
-
-          {/* Card 4: Next deadline */}
-          <Card className="p-3.5 bg-slate-900/60 border-slate-800">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <Clock className="w-3 h-3 text-sky-400" /> Next Deadline
-              </span>
-              <CalculationInfo
-                title="Next Cooking Deadline"
-                role="Kitchen"
-                whyNeeded="Tells the kitchen staff the earliest planned kitchen-ready time for an active order so they prioritize right now."
-                formula="MIN(Order.plannedKitchenReadyAt) WHERE Order.kitchenReadyAt IS NULL AND Order.deliveryDate = today"
-                whichOrdersCount="Confirmed orders for today that are not yet marked kitchen-ready."
-                dateGrouping="deliveryDate = today."
-                exclusionsAndMissing="Completed orders are excluded; if all orders are done, reports 'All orders complete'."
-              />
-            </div>
-            <div className="text-2xl font-bold text-white mt-1">
-              {nextDeadlineOrder
-                ? formatMinutesToTime(nextDeadlineOrder.deliveryTimeMin - (nextDeadlineOrder.leadMinutes ?? 60) - 30)
-                : 'All Done!'}
-            </div>
-            <p className="text-[11px] text-slate-400 mt-2 truncate">
-              {nextDeadlineOrder
-                ? `Order #${nextDeadlineOrder.id?.slice(0, 6)} (${nextDeadlineOrder.company?.name})`
-                : 'No pending prep deadlines today'}
-            </p>
-          </Card>
+          )}
         </div>
 
-        {/* Station Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-900/80 rounded-xl border border-slate-800 overflow-x-auto">
-          <button
-            onClick={() => setSelectedStationId('ALL')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              selectedStationId === 'ALL'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            All Stations ({boardData?.totalUnits || 0})
-          </button>
-
-          {stations.map((st: any) => (
-            <button
-              key={st.id || 'unassigned'}
-              onClick={() => setSelectedStationId(st.id || 'null')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                selectedStationId === (st.id || 'null')
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <span>{st.name}</span>
-              <span className="text-[10px] opacity-80">
-                ({st.doneUnits}/{st.totalUnits})
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Batch Cook Totals Card (Aggregated prep list) */}
+        {/* Aggregated Batch Cooking Targets */}
         {cookTotals.length > 0 && selectedStationId === 'ALL' && (
-          <Card className="border-slate-800 bg-slate-900/40 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                <Flame className="w-3.5 h-3.5 text-amber-400" />
-                Aggregated Batch Cooking Targets
-              </span>
-              <span className="text-[11px] text-slate-500">
-                Sum across all confirmed orders for {activeDate}
-              </span>
+          <div className="rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] mb-2">
+              Aggregated Batch Cooking Targets
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {cookTotals.map((ct: any, idx: number) => (
                 <div
                   key={idx}
-                  className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 flex items-center justify-between text-xs"
+                  className="p-2 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-between text-[12px]"
                 >
                   <div className="truncate mr-2">
-                    <div className="font-semibold text-slate-200 truncate">{ct.dishName}</div>
-                    <div className="text-[10px] text-slate-400 truncate">{ct.label}</div>
+                    <div className="font-medium text-[var(--text)] truncate">{ct.dishName}</div>
+                    <div className="text-[11px] text-[var(--text-muted)] truncate">{ct.label}</div>
                   </div>
-                  <div className="shrink-0 text-right">
-                    <span className="text-sm font-bold text-emerald-400">{ct.totalQty}</span>
-                    <span className="text-[10px] text-slate-500 block">units</span>
-                  </div>
+                  <span className="text-[13px] font-mono font-semibold tabular-nums text-[var(--text)] shrink-0">
+                    {ct.totalQty}
+                  </span>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
         )}
 
-        {/* Live Orders with Prep Units */}
+        {/* Prep Cards / Orders List */}
         {isLoading ? (
-          <div className="py-20 text-center text-slate-500 text-xs">
-            Loading kitchen prep board...
+          <div className="space-y-3 py-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-[120px] rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] animate-pulse p-4" />
+            ))}
           </div>
-        ) : orders.length > 0 ? (
-          <div className="space-y-4">
-            {orders.map((order: any) => {
+        ) : sortedOrders.length > 0 ? (
+          <div className="space-y-3">
+            {sortedOrders.map((order: any) => {
               const isLate = order.isLate;
-              const isAtRisk = order.isAtRisk;
+              const isAtRisk = order.isAtRisk && !isLate;
+              const units = order.units || [];
+              const orderDoneUnits = units.filter((u: any) => u.state === 'DONE').length;
+              const targetReadyTime = order.plannedKitchenReadyAt
+                ? new Date(order.plannedKitchenReadyAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                  })
+                : formatMinutesToTime(order.deliveryTimeMin);
 
               return (
-                <Card
+                <div
                   key={order.id}
-                  className={`overflow-hidden transition-all bg-slate-900/60 ${
-                    isLate
-                      ? 'border-rose-500/80 shadow-lg shadow-rose-950/20'
-                      : isAtRisk
-                      ? 'border-amber-500/80 shadow-lg shadow-amber-950/20'
-                      : 'border-slate-800'
-                  }`}
+                  className={cn(
+                    'rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden transition-colors duration-120',
+                    isLate && 'border-l-4 border-l-[var(--status-danger-fg)]',
+                    isAtRisk && 'border-l-4 border-l-[var(--status-warning-fg)]'
+                  )}
                 >
-                  {/* Order Header Banner */}
-                  <div
-                    className={`p-3.5 sm:px-5 flex flex-wrap items-center justify-between gap-3 border-b ${
-                      isLate
-                        ? 'bg-rose-950/30 border-rose-900/50'
-                        : isAtRisk
-                        ? 'bg-amber-950/30 border-amber-900/50'
-                        : 'bg-slate-950/60 border-slate-800'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center gap-3 text-xs">
-                      <span className="font-mono font-bold text-white text-sm">
+                  {/* Order Meta Header */}
+                  <div className="h-[36px] px-3.5 bg-[var(--bg-raised)] border-b border-[var(--border)] flex items-center justify-between text-[12px]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-semibold text-[var(--text)]">
                         Order #{order.number}
                       </span>
-                      <span className="text-slate-300 font-medium">
-                        {order.company?.name}
+                      <span className="text-[var(--text-muted)] truncate max-w-[200px]">
+                        {order.company?.name} · {order.employee?.name}
                       </span>
-                      <span className="text-slate-400">
-                        • {order.employee?.name}
-                      </span>
-
-                      {/* Risk Badges */}
                       {isLate && (
-                        <Badge variant="destructive" className="animate-pulse text-[10px]">
-                          LATE (Ready time passed)
-                        </Badge>
+                        <StatusBadge category="danger" label="Late" pulse className="h-[20px] text-[11px]" />
                       )}
-                      {!isLate && isAtRisk && (
-                        <Badge variant="warning" className="text-[10px]">
-                          AT RISK (&lt;60 min remaining)
-                        </Badge>
+                      {isAtRisk && (
+                        <StatusBadge category="warning" label="At risk" className="h-[20px] text-[11px]" />
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs">
-                      <div className="text-slate-400 text-right">
-                        <div>
-                          Delivery:{' '}
-                          <strong className="text-slate-200">
-                            {formatMinutesToTime(order.deliveryTimeMin)}
-                          </strong>
-                        </div>
-                        <div className="text-[11px]">
-                          Target Ready:{' '}
-                          <span className={isLate ? 'text-rose-400 font-bold' : 'text-slate-300'}>
-                            {order.plannedKitchenReadyAt
-                              ? new Date(order.plannedKitchenReadyAt).toLocaleTimeString([], {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })
-                              : 'N/A'}
-                          </span>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5 font-mono tabular-nums text-[12px] text-[var(--text-muted)]">
+                        <Clock className="w-3.5 h-3.5 text-[var(--text-faint)]" />
+                        <span>Target: {targetReadyTime}</span>
                       </div>
 
-                      {/* Force Complete for Admin / Force perms */}
                       {can('kitchen:force') && !order.kitchenReadyAt && (
                         <Button
-                          variant="outline"
+                          variant="secondary"
                           size="sm"
                           onClick={() => forceMutation.mutate(order.id)}
                           loading={forceMutation.isPending}
-                          className="text-[11px] h-7 px-2 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20"
-                          title="Marks all units started & done in one transaction"
+                          className="h-[24px] px-2 text-[11px]"
+                          title="Force complete order"
                         >
-                          <Zap className="w-3 h-3 mr-1 text-emerald-400" />
-                          Force Complete
+                          <Zap className="w-3 h-3 mr-1" /> Force
                         </Button>
                       )}
                     </div>
                   </div>
 
                   {/* Units List */}
-                  <div className="p-4 space-y-2.5">
-                    {order.units?.map((unit: any) => {
+                  <div className="p-3 space-y-2">
+                    {units.map((unit: any) => {
                       const isDone = unit.state === 'DONE';
-                      const isStarted = unit.state === 'STARTED';
-                      const isNotStarted = unit.state === 'NOT_STARTED';
+                      const isCooking = unit.state === 'STARTED';
+                      const isQueued = unit.state === 'NOT_STARTED';
 
                       return (
                         <div
                           key={unit.id}
-                          className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
-                            isDone
-                              ? 'bg-slate-950/40 border-slate-800/60 opacity-70'
-                              : isStarted
-                              ? 'bg-emerald-950/20 border-emerald-500/40 shadow-sm'
-                              : 'bg-slate-950/80 border-slate-800'
-                          }`}
+                          className={cn(
+                            'rounded-[6px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 space-y-2 transition-colors duration-120',
+                            isDone && 'opacity-65'
+                          )}
                         >
-                          {/* Unit Info */}
-                          <div className="space-y-1 text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-white text-sm">
-                                {unit.quantity}x
-                              </span>
-                              <span className="font-semibold text-slate-100">
-                                {unit.dishName}
-                              </span>
-                              <Badge variant="outline" className="text-[10px] py-0">
-                                {unit.stationName || 'Unassigned'}
-                              </Badge>
-                              {isDone ? (
-                                <Badge variant="default" className="text-[10px] py-0">
-                                  Done
-                                </Badge>
-                              ) : isStarted ? (
-                                <Badge variant="warning" className="text-[10px] py-0">
-                                  Cooking
-                                </Badge>
-                              ) : (
-                                <Badge variant="secondary" className="text-[10px] py-0">
-                                  Queued
-                                </Badge>
+                          {/* Row 1: Dish name 16/600 + unit count right ('×48', 32/700 tabular) */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-[16px] font-semibold text-[var(--text)] truncate">
+                              {unit.dishName}
+                            </span>
+                            <span className="text-[32px] leading-[36px] font-bold font-mono tabular-nums text-[var(--text)]">
+                              ×{unit.quantity}
+                            </span>
+                          </div>
+
+                          {/* Row 2: Company chips + dietary chips */}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Chip label={order.company?.name || 'Client'} />
+                            {unit.stationName && <Chip label={unit.stationName} />}
+                            {unit.options?.map((o: any, idx: number) => (
+                              <Chip key={idx} label={`${o.groupName}: ${o.optionName}`} />
+                            ))}
+                          </div>
+
+                          {/* Row 3: ProgressBar + 32 / 48 */}
+                          <div>
+                            <ProgressBar
+                              value={isDone ? unit.quantity : isCooking ? Math.round(unit.quantity * 0.5) : 0}
+                              max={unit.quantity}
+                              isLate={isLate}
+                              isAtRisk={isAtRisk}
+                            />
+                          </div>
+
+                          {/* Row 4: Due time (mono) + remaining/late chip + StatusBadge */}
+                          <div className="flex items-center justify-between pt-1">
+                            <div className="flex items-center gap-2 text-[12px] font-mono tabular-nums text-[var(--text-muted)]">
+                              <span>Due {targetReadyTime}</span>
+                              {isLate && (
+                                <StatusBadge category="danger" label="Late" pulse className="h-[20px] text-[11px]" />
+                              )}
+                              {isAtRisk && (
+                                <StatusBadge category="warning" label="Due soon" className="h-[20px] text-[11px]" />
                               )}
                             </div>
 
-                            <div className="text-[11px] text-slate-400">
-                              {unit.label || 'Standard Combination'}
-                            </div>
-
-                            {unit.options?.length > 0 && (
-                              <div className="text-[11px] text-emerald-400/90 font-medium">
-                                {unit.options.map((o: any, idx: number) => (
-                                  <span key={idx}>
-                                    {idx > 0 && ' • '}
-                                    {o.groupName}: {o.optionName}
-                                    {o.portionName ? ` (${o.portionName})` : ''}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+                            <StatusBadge
+                              category={isDone ? 'success' : isCooking ? 'warning' : 'neutral'}
+                              label={isDone ? 'Ready' : isCooking ? 'In Progress' : 'Not Started'}
+                            />
                           </div>
 
-                          {/* Unit Action Buttons */}
-                          <div className="flex items-center gap-2 shrink-0">
-                            {isNotStarted && (
+                          {/* Row 5: ONE full-width 32px button for the next valid action only */}
+                          <div className="pt-1">
+                            {isQueued && (
                               <Button
-                                size="sm"
-                                variant="outline"
+                                variant="primary"
                                 onClick={() => startMutation.mutate(unit.id)}
                                 loading={startMutation.isPending}
-                                className="h-8 text-xs px-3 border-amber-500/40 text-amber-300 hover:bg-amber-500/10"
+                                className="w-full h-[32px]"
                               >
-                                <Play className="w-3.5 h-3.5 mr-1 text-amber-400" /> Start
+                                <Play className="w-3.5 h-3.5 mr-1.5" /> Start prep
                               </Button>
                             )}
 
-                            {!isDone && (
+                            {isCooking && (
                               <Button
-                                size="sm"
+                                variant="primary"
                                 onClick={() => doneMutation.mutate(unit.id)}
                                 loading={doneMutation.isPending}
-                                className="h-8 text-xs px-3 bg-emerald-600 hover:bg-emerald-500 text-white"
+                                className="w-full h-[32px]"
                               >
-                                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Done
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Mark ready
                               </Button>
                             )}
 
                             {isDone && (
-                              <span className="text-xs text-emerald-400 flex items-center gap-1 font-medium pr-2">
-                                <CheckCircle2 className="w-4 h-4" /> Ready
-                              </span>
+                              <div className="h-[32px] rounded-[6px] border border-[var(--border)] bg-[var(--bg-raised)] flex items-center justify-center text-[12px] font-medium text-[var(--status-success-fg)] gap-1.5">
+                                <CheckCircle2 className="w-4 h-4 text-[var(--status-success-fg)]" />
+                                <span>Prep completed</span>
+                              </div>
                             )}
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>
         ) : (
-          <div className="py-24 text-center text-slate-500 text-xs">
-            No prep units scheduled for this date & station. Only CONFIRMED orders appear on the kitchen board.
-          </div>
+          <EmptyState
+            message="No prep units scheduled for this date and station."
+            actionLabel="Reset station filter"
+            onAction={() => {
+              setSelectedStationId('ALL');
+              setRiskFilter('ALL');
+            }}
+          />
         )}
       </div>
     </AppShell>

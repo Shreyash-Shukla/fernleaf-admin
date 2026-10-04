@@ -2,38 +2,49 @@
 
 import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageHeader } from '@/components/shell/page-header';
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { extractList, formatCents, formatDate, formatMinutesToTime } from '@/lib/utils';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { extractList, formatCents, formatDate, formatMinutesToTime, cn } from '@/lib/utils';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Drawer } from '@/components/ui/drawer';
+import { StateBanner } from '@/components/ui/state-banner';
+import { EmptyState } from '@/components/ui/empty-state';
+import { TableSkeletonRows } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 import Link from 'next/link';
 import {
-  ShoppingBag,
-  PlusCircle,
   Search,
-  Filter,
-  Eye,
   ChevronLeft,
   ChevronRight,
-  Calendar,
-  Building,
-  CheckCircle2,
   Clock,
-  AlertCircle,
-  XCircle,
+  MoreHorizontal,
+  ArrowUpDown,
+  Download,
+  Eye,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 
 export default function OrdersListPage() {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [companyId, setCompanyId] = useState('');
   const [invoiced, setInvoiced] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+
+  // Table options
+  const [compact, setCompact] = useState(false);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [drawerOrder, setDrawerOrder] = useState<any>(null);
 
   // Fetch companies for filter dropdown
   const { data: companiesData } = useQuery<{ items: any[] }>({
@@ -44,7 +55,7 @@ export default function OrdersListPage() {
   // Query parameters string
   const queryParams = new URLSearchParams();
   queryParams.set('page', String(page));
-  queryParams.set('pageSize', '15');
+  queryParams.set('pageSize', String(pageSize));
   if (search) queryParams.set('q', search);
   if (status) queryParams.set('status', status);
   if (companyId) queryParams.set('companyId', companyId);
@@ -52,7 +63,7 @@ export default function OrdersListPage() {
   if (fromDate) queryParams.set('from', fromDate);
   if (toDate) queryParams.set('to', toDate);
 
-  const { data, isLoading } = useQuery<{
+  const { data, isLoading, isError, refetch } = useQuery<{
     data: any[];
     pagination: {
       total: number;
@@ -68,252 +79,314 @@ export default function OrdersListPage() {
   const orders = extractList(data);
   const pagination = data?.pagination || {
     page: (data as any)?.page || page,
-    pageSize: (data as any)?.pageSize || 15,
+    pageSize: (data as any)?.pageSize || pageSize,
     total: (data as any)?.total ?? orders.length,
-    totalPages: (data as any)?.totalPages || Math.ceil(((data as any)?.total ?? orders.length) / 15) || 1,
+    totalPages: (data as any)?.totalPages || Math.ceil(((data as any)?.total ?? orders.length) / pageSize) || 1,
   };
 
-  const getStatusBadge = (statusName: string) => {
-    switch (statusName) {
-      case 'DRAFT':
-        return <Badge variant="secondary">Draft</Badge>;
-      case 'PLACED':
-        return <Badge variant="warning">Placed</Badge>;
-      case 'CONFIRMED':
-        return <Badge variant="default">Confirmed</Badge>;
-      case 'DELIVERED':
-        return <Badge variant="info">Delivered</Badge>;
-      case 'CANCELLED':
-        return <Badge variant="secondary" className="line-through opacity-70">Cancelled</Badge>;
-      case 'REJECTED':
-        return <Badge variant="destructive">Rejected</Badge>;
-      default:
-        return <Badge variant="outline">{statusName}</Badge>;
+  const allSelected = orders.length > 0 && selectedOrderIds.length === orders.length;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedOrderIds([]);
+    } else {
+      setSelectedOrderIds(orders.map((o: any) => o.id));
     }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   return (
     <AppShell requiredPermission="orders:read">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <ShoppingBag className="w-6 h-6 text-emerald-400" />
-              <span>Orders Management</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Browse, track, and manage all corporate meal orders
-            </p>
-          </div>
+      <div className="space-y-4">
+        {/* Page Header (No primary button here, New order lives in sidebar) */}
+        <PageHeader
+          title="Orders Management"
+          subtitle="Browse, track, and manage all corporate meal orders"
+          contextBar={
+            <div className="flex items-center justify-between w-full gap-4 text-[12px]">
+              {/* Left Filters */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Search */}
+                <div className="relative w-56">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-[var(--text-faint)]" />
+                  <input
+                    type="text"
+                    placeholder="Search orders, clients..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
+                    className="w-full pl-8 pr-2.5 h-[28px] bg-[var(--bg-surface)] border border-[var(--border)] rounded-[6px] text-[12px] text-[var(--text)] placeholder:text-[var(--text-faint)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--focus-ring)]"
+                  />
+                </div>
 
-          <Link href="/orders/new">
-            <Button size="sm" className="text-xs">
-              <PlusCircle className="w-4 h-4 mr-1.5" />
-              Create Order
-            </Button>
-          </Link>
-        </div>
-
-        {/* Filters Card */}
-        <Card className="p-4 bg-slate-900/60 border-slate-800 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {/* Search */}
-            <div className="sm:col-span-2">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                Search
-              </label>
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-500" />
-                <input
-                  type="text"
-                  placeholder="Order #, employee name or email..."
-                  value={search}
+                {/* Status Filter */}
+                <select
+                  value={status}
                   onChange={(e) => {
-                    setSearch(e.target.value);
+                    setStatus(e.target.value);
                     setPage(1);
                   }}
-                  className="w-full pl-8 pr-3 py-1.5 bg-slate-950/70 border border-slate-700/80 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
+                  className="h-[28px] px-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[6px] text-[12px] text-[var(--text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--focus-ring)]"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="DRAFT">Draft</option>
+                  <option value="PLACED">Placed</option>
+                  <option value="CONFIRMED">Confirmed</option>
+                  <option value="DELIVERED">Delivered</option>
+                  <option value="CANCELLED">Cancelled</option>
+                  <option value="REJECTED">Rejected</option>
+                </select>
+
+                {/* Company Filter */}
+                <select
+                  value={companyId}
+                  onChange={(e) => {
+                    setCompanyId(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-[28px] px-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[6px] text-[12px] text-[var(--text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--focus-ring)] max-w-[160px]"
+                >
+                  <option value="">All Companies</option>
+                  {extractList(companiesData).map((c: any) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Invoiced Filter */}
+                <select
+                  value={invoiced}
+                  onChange={(e) => {
+                    setInvoiced(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-[28px] px-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[6px] text-[12px] text-[var(--text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--focus-ring)]"
+                >
+                  <option value="">All Billing</option>
+                  <option value="true">Invoiced</option>
+                  <option value="false">Unbilled</option>
+                </select>
+
+                {(search || status || companyId || invoiced) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setStatus('');
+                      setCompanyId('');
+                      setInvoiced('');
+                      setPage(1);
+                    }}
+                    className="text-[11px] text-[var(--brand-text)] hover:underline"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+
+              {/* Right Controls: Compact Toggle */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setCompact(!compact)}
+                  className={cn(
+                    'h-[26px] px-2 rounded-[6px] border text-[11px] font-medium transition-colors',
+                    compact
+                      ? 'bg-[var(--bg-raised)] text-[var(--text)] border-[var(--border-strong)]'
+                      : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border)] hover:bg-[var(--bg-raised)]'
+                  )}
+                >
+                  Compact {compact ? 'ON' : 'OFF'}
+                </button>
               </div>
             </div>
+          }
+        />
 
-            {/* Status Filter */}
-            <div>
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                Status
-              </label>
-              <select
-                value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full px-2.5 py-1.5 bg-slate-950/70 border border-slate-700/80 rounded-lg text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              >
-                <option value="">All Statuses</option>
-                <option value="DRAFT">Draft</option>
-                <option value="PLACED">Placed</option>
-                <option value="CONFIRMED">Confirmed</option>
-                <option value="DELIVERED">Delivered</option>
-                <option value="CANCELLED">Cancelled</option>
-                <option value="REJECTED">Rejected</option>
-              </select>
-            </div>
+        {isError && (
+          <StateBanner
+            variant="error"
+            message="Failed to load orders"
+            onRetry={() => refetch()}
+          />
+        )}
 
-            {/* Company Filter */}
-            <div>
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                Company
-              </label>
-              <select
-                value={companyId}
-                onChange={(e) => {
-                  setCompanyId(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full px-2.5 py-1.5 bg-slate-950/70 border border-slate-700/80 rounded-lg text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              >
-                <option value="">All Companies</option>
-                {extractList(companiesData).map((c: any) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Invoiced Filter */}
-            <div>
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                Invoiced
-              </label>
-              <select
-                value={invoiced}
-                onChange={(e) => {
-                  setInvoiced(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full px-2.5 py-1.5 bg-slate-950/70 border border-slate-700/80 rounded-lg text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              >
-                <option value="">Any</option>
-                <option value="true">Invoiced</option>
-                <option value="false">Unbilled</option>
-              </select>
-            </div>
-
-            {/* Clear Filters */}
-            <div className="flex items-end">
+        {/* Bulk Action Bar (when ≥ 1 selected) */}
+        {selectedOrderIds.length > 0 && (
+          <div className="h-[40px] px-4 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-between text-[12px] select-none">
+            <span className="font-medium text-[var(--text)]">
+              {selectedOrderIds.length} orders selected
+            </span>
+            <div className="flex items-center gap-2">
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="sm"
+                className="h-[26px] text-[11px]"
                 onClick={() => {
-                  setSearch('');
-                  setStatus('');
-                  setCompanyId('');
-                  setInvoiced('');
-                  setFromDate('');
-                  setToDate('');
-                  setPage(1);
+                  toast.success(`Exporting ${selectedOrderIds.length} orders to CSV...`);
                 }}
-                className="w-full text-xs text-slate-400 hover:text-white"
               >
-                Reset Filters
+                <Download className="w-3 h-3 mr-1" /> Export
               </Button>
+              <button
+                type="button"
+                onClick={() => setSelectedOrderIds([])}
+                className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] ml-2"
+              >
+                Clear selection
+              </button>
             </div>
           </div>
-        </Card>
+        )}
 
-        {/* Orders Table */}
-        <Card className="border-slate-800 bg-slate-900/40 overflow-hidden">
+        {/* DataTable Container */}
+        <div className="rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[11px] tracking-wider">
-                <tr>
-                  <th className="py-3 px-4">Order #</th>
-                  <th className="py-3 px-4">Employee</th>
-                  <th className="py-3 px-4">Company</th>
-                  <th className="py-3 px-4">Delivery</th>
-                  <th className="py-3 px-4">Total</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Billing</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+            <table className="w-full text-left text-[13px] border-collapse">
+              <thead className="bg-[var(--bg-raised)] border-b border-[var(--border)] sticky top-0 select-none z-10">
+                <tr className="h-[36px]">
+                  <th className="w-[36px] px-3 py-1.5">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="rounded-[4px] accent-[var(--brand-solid)] cursor-pointer"
+                    />
+                  </th>
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                    ORDER #
+                  </th>
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                    EMPLOYEE
+                  </th>
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                    COMPANY
+                  </th>
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                    DELIVERY
+                  </th>
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] text-right">
+                    TOTAL
+                  </th>
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                    STATUS
+                  </th>
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                    BILLING
+                  </th>
+                  <th className="w-[44px] px-3 py-1.5 text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[var(--border)]">
                 {isLoading ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-500">
-                      Loading orders...
-                    </td>
-                  </tr>
+                  <TableSkeletonRows columns={9} rows={8} compact={compact} />
                 ) : orders.length > 0 ? (
-                  orders.map((order: any) => (
-                    <tr
-                      key={order.id}
-                      className="hover:bg-slate-850/50 transition-colors"
-                    >
-                      <td className="py-3 px-4 font-mono font-bold text-white">
-                        <Link
-                          href={`/orders/${order.id}`}
-                          className="hover:text-emerald-400 transition-colors"
-                        >
-                          #{order.number}
-                        </Link>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-medium text-slate-200">
-                          {order.employee?.name || 'N/A'}
-                        </div>
-                        <div className="text-[11px] text-slate-400">
-                          {order.employee?.email}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-slate-300">
-                        {order.company?.name}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-medium text-slate-200">
-                          {formatDate(order.deliveryDate)}
-                        </div>
-                        <div className="text-[11px] text-slate-400 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-sky-400" />
-                          {formatMinutesToTime(order.deliveryTimeMin)}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 font-bold text-emerald-400">
-                        {formatCents(order.totalCents)}
-                      </td>
-                      <td className="py-3 px-4">
-                        {getStatusBadge(order.status)}
-                      </td>
-                      <td className="py-3 px-4">
-                        {order.invoiceId ? (
-                          <Badge variant="secondary" className="text-[10px]">
-                            Invoiced
-                          </Badge>
-                        ) : ['CONFIRMED', 'DELIVERED'].includes(order.status) ? (
-                          <Badge variant="warning" className="text-[10px]">
-                            Unbilled
-                          </Badge>
-                        ) : (
-                          <span className="text-slate-500 text-[11px]">N/A</span>
+                  orders.map((order: any) => {
+                    const isSelected = selectedOrderIds.includes(order.id);
+                    return (
+                      <tr
+                        key={order.id}
+                        onClick={() => setDrawerOrder(order)}
+                        className={cn(
+                          'cursor-pointer transition-colors duration-120 hover:bg-[var(--bg-raised)]',
+                          compact ? 'h-[32px]' : 'h-[40px]',
+                          isSelected && 'bg-[var(--brand-soft)] border-l-2 border-l-[var(--brand-solid)]'
                         )}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Link href={`/orders/${order.id}`}>
-                          <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs">
-                            <Eye className="w-3.5 h-3.5 mr-1" />
-                            View
-                          </Button>
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
+                      >
+                        <td
+                          className="px-3 py-1.5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelectOne(order.id);
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="rounded-[4px] accent-[var(--brand-solid)] cursor-pointer"
+                          />
+                        </td>
+
+                        <td className="px-3 py-1.5 font-mono text-[12px] font-semibold text-[var(--text)]">
+                          #{order.number}
+                        </td>
+
+                        <td className="px-3 py-1.5 text-[var(--text)] truncate max-w-[160px]">
+                          {order.employee?.name || 'Guest'}
+                        </td>
+
+                        <td className="px-3 py-1.5 text-[var(--text-muted)] truncate max-w-[150px]">
+                          {order.company?.name || 'N/A'}
+                        </td>
+
+                        <td className="px-3 py-1.5 text-[var(--text-muted)] whitespace-nowrap">
+                          <span>{formatDate(order.deliveryDate)}</span>
+                          <span className="text-[var(--text-faint)] font-mono ml-1.5">
+                            {formatMinutesToTime(order.deliveryTimeMin)}
+                          </span>
+                        </td>
+
+                        <td className="px-3 py-1.5 text-right font-mono tabular-nums text-[var(--text)] font-semibold">
+                          {formatCents(order.totalCents)}
+                        </td>
+
+                        <td className="px-3 py-1.5">
+                          <StatusBadge status={order.status} className="h-[20px] text-[11px]" />
+                        </td>
+
+                        <td className="px-3 py-1.5">
+                          {order.invoiceId ? (
+                            <StatusBadge category="neutral" label="Invoiced" className="h-[20px] text-[11px]" />
+                          ) : ['CONFIRMED', 'DELIVERED'].includes(order.status) ? (
+                            <StatusBadge category="warning" label="Unbilled" className="h-[20px] text-[11px]" />
+                          ) : (
+                            <span className="text-[var(--text-faint)] text-[12px] font-mono">--</span>
+                          )}
+                        </td>
+
+                        <td
+                          className="px-3 py-1.5 text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className="h-[24px] w-[24px] rounded-[4px] hover:bg-[var(--bg-raised)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+                              >
+                                <MoreHorizontal className="w-3.5 h-3.5" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-36">
+                              <DropdownMenuItem onClick={() => setDrawerOrder(order)}>
+                                <Eye className="w-3.5 h-3.5 mr-2" /> View details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild>
+                                <Link href={`/orders/${order.id}`}>
+                                  Open full page
+                                </Link>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-500">
-                      No orders found matching the filter criteria.
+                    <td colSpan={9}>
+                      <EmptyState message="No orders found matching the filter criteria." />
                     </td>
                   </tr>
                 )}
@@ -321,40 +394,116 @@ export default function OrdersListPage() {
             </table>
           </div>
 
-          {/* Pagination Footer */}
-          {data && pagination.totalPages > 1 && (
-            <div className="p-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-              <div>
-                Showing {(pagination.page - 1) * pagination.pageSize + 1} to{' '}
-                {Math.min(pagination.page * pagination.pageSize, pagination.total)} of{' '}
-                {pagination.total} orders
+          {/* Sticky Footer: Showing 1–15 of 312 + page-size + pagination */}
+          <div className="h-[44px] px-4 border-t border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between text-[12px] text-[var(--text-muted)] select-none">
+            <div>
+              Showing {Math.min((pagination.page - 1) * pagination.pageSize + 1, pagination.total)}–
+              {Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total} orders
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                <span>Rows:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="h-[24px] px-1 bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[11px] text-[var(--text)]"
+                >
+                  <option value={15}>15</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
               </div>
-              <div className="flex items-center gap-2">
+
+              <div className="flex items-center gap-1">
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   disabled={pagination.page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="h-8 px-2.5"
+                  className="h-[26px] px-2 text-[11px]"
                 >
-                  <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+                  <ChevronLeft className="w-3.5 h-3.5 mr-0.5" /> Prev
                 </Button>
-                <span className="px-2 text-slate-300 font-medium">
+                <span className="px-2 font-mono text-[11px] text-[var(--text)]">
                   {pagination.page} / {pagination.totalPages}
                 </span>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   disabled={pagination.page >= pagination.totalPages}
                   onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                  className="h-8 px-2.5"
+                  className="h-[26px] px-2 text-[11px]"
                 >
-                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                  Next <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
                 </Button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Right Drawer for Order Detail Inspection */}
+        <Drawer
+          open={!!drawerOrder}
+          onClose={() => setDrawerOrder(null)}
+          title={`Order #${drawerOrder?.number}`}
+          subtitle={`${drawerOrder?.company?.name || 'Client'} · ${formatDate(drawerOrder?.deliveryDate)}`}
+          footer={
+            drawerOrder ? (
+              <Link href={`/orders/${drawerOrder.id}`}>
+                <Button variant="primary" size="sm">Open Full Order Record</Button>
+              </Link>
+            ) : null
+          }
+        >
+          {drawerOrder && (
+            <div className="space-y-4 text-[13px]">
+              <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+                <span className="text-[var(--text-muted)]">Status:</span>
+                <StatusBadge status={drawerOrder.status} />
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] block">
+                  Employee Details
+                </span>
+                <div className="p-2.5 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border)] space-y-1">
+                  <div className="font-medium text-[var(--text)]">{drawerOrder.employee?.name || 'Guest'}</div>
+                  <div className="text-[12px] text-[var(--text-muted)]">{drawerOrder.employee?.email}</div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] block">
+                  Delivery Details
+                </span>
+                <div className="p-2.5 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border)] space-y-1">
+                  <div className="text-[var(--text)]">
+                    Date: <strong>{formatDate(drawerOrder.deliveryDate)}</strong>
+                  </div>
+                  <div className="text-[var(--text-muted)] font-mono text-[12px]">
+                    Window: {formatMinutesToTime(drawerOrder.deliveryTimeMin)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] block">
+                  Commercial Total
+                </span>
+                <div className="p-2.5 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border)] flex items-baseline justify-between">
+                  <span className="text-[var(--text-muted)]">Subtotal (cents):</span>
+                  <span className="text-[18px] font-mono font-semibold text-[var(--text)]">
+                    {formatCents(drawerOrder.totalCents)}
+                  </span>
+                </div>
+              </div>
+            </div>
           )}
-        </Card>
+        </Drawer>
       </div>
     </AppShell>
   );

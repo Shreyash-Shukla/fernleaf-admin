@@ -88,3 +88,43 @@ export function extractList<T = any>(payload: any): T[] {
   return [];
 }
 
+/**
+ * Pluralize helper ("1 Draft", "2 Drafts")
+ */
+export function pluralize(count: number, singular: string, plural?: string): string {
+  if (count === 1) {
+    return `${count} ${singular}`;
+  }
+  return `${count} ${plural || `${singular}s`}`;
+}
+
+export type StatusCategory = 'neutral' | 'info' | 'warning' | 'danger' | 'success';
+
+/**
+ * Standard Status Mapping per Calm Density Design Spec
+ * - neutral: Draft, Not started, Idle, Cancelled
+ * - info: Placed, Confirmed, In progress, Scheduled, Assigned, Staging, On route
+ * - warning: At risk, Due soon, Pending, Delayed-minor
+ * - danger: Late, Failed, Overdue, Delayed, Behind schedule
+ * - success: Delivered, Done, Ready, Paid, Completed
+ */
+export function getStatusCategory(status: string | null | undefined): StatusCategory {
+  if (!status) return 'neutral';
+  const clean = status.trim().toUpperCase().replace(/[\s_-]+/g, '');
+
+  if (['DELIVERED', 'DONE', 'READY', 'PAID', 'COMPLETED', 'ONTIME', 'SUCCESS'].includes(clean)) {
+    return 'success';
+  }
+  if (['LATE', 'FAILED', 'OVERDUE', 'DELAYED', 'BEHINDSCHEDULE', 'REJECTED'].includes(clean)) {
+    return 'danger';
+  }
+  if (['ATRISK', 'DUESOON', 'PENDING', 'DELAYEDMINOR', 'UNBILLED', 'COOKING'].includes(clean)) {
+    return 'warning';
+  }
+  if (['PLACED', 'CONFIRMED', 'INPROGRESS', 'SCHEDULED', 'ASSIGNED', 'STAGING', 'ONROUTE', 'OUTFORDELIVERY', 'PREPARING', 'DISPATCHREADY', 'ISSUED'].includes(clean)) {
+    return 'info';
+  }
+  return 'neutral';
+}
+
+

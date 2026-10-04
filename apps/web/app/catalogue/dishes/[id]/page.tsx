@@ -3,24 +3,23 @@
 import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageHeader } from '@/components/shell/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
 import { formatCents } from '@/lib/utils';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Chip } from '@/components/ui/chip';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
-  UtensilsCrossed,
   ArrowLeft,
   Save,
-  PlusCircle,
   Plus,
   Trash2,
   Layers,
-  Sparkles,
-  ChefHat,
 } from 'lucide-react';
 
 export default function DishDetailPage() {
@@ -124,7 +123,7 @@ export default function DishDetailPage() {
   if (isLoading) {
     return (
       <AppShell requiredPermission="catalogue:read">
-        <div className="py-24 text-center text-slate-500 text-xs">Loading dish details...</div>
+        <div className="py-24 text-center text-muted text-xs">Loading dish details…</div>
       </AppShell>
     );
   }
@@ -132,10 +131,10 @@ export default function DishDetailPage() {
   if (!dish) {
     return (
       <AppShell requiredPermission="catalogue:read">
-        <div className="py-24 text-center text-slate-400">
+        <div className="py-24 text-center text-muted">
           <p>Dish not found.</p>
           <Button onClick={() => router.push('/catalogue/dishes')} className="mt-3">
-            Back to Dishes
+            Back to dishes
           </Button>
         </div>
       </AppShell>
@@ -144,12 +143,12 @@ export default function DishDetailPage() {
 
   return (
     <AppShell requiredPermission="catalogue:read">
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
+        <div className="flex items-center justify-between pb-2 border-b border-border">
           <div className="flex items-center gap-3">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => router.push('/catalogue/dishes')}
               className="h-8 w-8 p-0"
@@ -158,14 +157,14 @@ export default function DishDetailPage() {
             </Button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-white">{dish.name}</h1>
-                <Badge variant={dish.active ? 'default' : 'secondary'} className="text-[10px]">
-                  {dish.active ? 'Active in Catalogue' : 'Deactivated'}
-                </Badge>
+                <h1 className="text-xl font-semibold text-text">{dish.name}</h1>
+                <StatusBadge status={dish.active ? 'Ready' : 'Cancelled'} label={dish.active ? 'Active' : 'Deactivated'} />
               </div>
-              <p className="text-xs text-slate-400 mt-0.5 font-mono">
-                SKU: {dish.sku} • Station: {dish.station?.name || 'Unassigned'}
-              </p>
+              <div className="text-xs text-muted mt-0.5 font-mono flex items-center gap-2">
+                <span>SKU: {dish.sku}</span>
+                <span>·</span>
+                <span>Station: {dish.station?.name || 'Unassigned'}</span>
+              </div>
             </div>
           </div>
 
@@ -180,45 +179,42 @@ export default function DishDetailPage() {
               })
             }
             loading={updateDishMutation.isPending}
-            className="text-xs bg-emerald-600 hover:bg-emerald-500"
           >
-            <Save className="w-3.5 h-3.5 mr-1" /> Save Dish
+            <Save className="w-3.5 h-3.5 mr-1.5" /> Save dish
           </Button>
         </div>
 
         {/* Dish Basic Settings */}
-        <Card className="p-5 bg-slate-900/60 border-slate-800 space-y-4">
-          <h3 className="font-semibold text-sm text-white">General Information</h3>
+        <Card className="p-4 bg-surface border border-border space-y-4">
+          <div className="text-sm font-semibold text-text">General information</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Dish Name</label>
-              <input
+              <label className="text-xs font-medium text-text block mb-1">Dish name</label>
+              <Input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">
-                Internal Base Cost (Cents)
+              <label className="text-xs font-medium text-text block mb-1">
+                Internal base cost (cents)
               </label>
-              <input
+              <Input
                 type="number"
                 value={costCents}
                 onChange={(e) => setCostCents(parseInt(e.target.value, 10) || 0)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
               />
-              <span className="text-[10px] text-slate-500">{formatCents(costCents)}</span>
+              <span className="text-[11px] text-muted tabular-nums mt-0.5 block">{formatCents(costCents)}</span>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Catalogue Status</label>
+              <label className="text-xs font-medium text-text block mb-1">Catalogue status</label>
               <select
                 value={active ? 'true' : 'false'}
                 onChange={(e) => setActive(e.target.value === 'true')}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                className="w-full h-8 px-2.5 bg-app border border-border rounded-md text-xs text-text focus:outline-none focus:ring-1 focus:ring-brand-solid"
               >
                 <option value="true">Active (Available for menus)</option>
                 <option value="false">Deactivated (Soft deleted)</option>
@@ -226,32 +222,32 @@ export default function DishDetailPage() {
             </div>
 
             <div className="md:col-span-3">
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Description</label>
+              <label className="text-xs font-medium text-text block mb-1">Description</label>
               <textarea
                 rows={2}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                className="w-full px-3 py-2 bg-app border border-border rounded-md text-xs text-text placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-brand-solid"
               />
             </div>
           </div>
         </Card>
 
         {/* Option Groups Editor Section */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-base text-white flex items-center gap-2">
-                <Layers className="w-5 h-5 text-emerald-400" />
-                <span>Option Groups for this Dish</span>
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Configure customizable groups (e.g. Choose your Protein, Choice of Rice, Extra Toppings)
+              <h2 className="font-semibold text-sm text-text">
+                Option groups for this dish
+              </h2>
+              <p className="text-xs text-muted">
+                Configure customizable groups (e.g. Choose protein, choice of rice, extra toppings)
               </p>
             </div>
 
             <Button
               size="sm"
+              variant="secondary"
               onClick={() => {
                 setGroupName('');
                 setGroupRequired(true);
@@ -259,35 +255,24 @@ export default function DishDetailPage() {
                 setSelectedOptionIds([]);
                 setGroupModalOpen(true);
               }}
-              className="text-xs"
             >
-              <PlusCircle className="w-4 h-4 mr-1.5" />
-              Add Option Group
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Add option group
             </Button>
           </div>
 
           {groupsLoading ? (
-            <div className="py-16 text-center text-slate-500 text-xs">Loading option groups...</div>
+            <div className="py-12 text-center text-muted text-xs">Loading option groups…</div>
           ) : groups && groups.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {groups.map((group: any) => (
-                <Card key={group.id} className="p-5 bg-slate-900/60 border-slate-800 space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div key={group.id} className="p-4 bg-surface border border-border rounded-lg space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-white">{group.name}</span>
-                      {group.required ? (
-                        <Badge variant="default" className="text-[10px]">
-                          Required Choice
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-[10px]">
-                          Optional Choice
-                        </Badge>
-                      )}
+                      <span className="font-medium text-sm text-text">{group.name}</span>
+                      <Chip>{group.required ? 'Required choice' : 'Optional choice'}</Chip>
                       {group.usesPortions && (
-                        <Badge variant="info" className="text-[10px]">
-                          Uses Portions / Sizes
-                        </Badge>
+                        <Chip>Portion sizes</Chip>
                       )}
                     </div>
 
@@ -295,34 +280,34 @@ export default function DishDetailPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => deleteGroupMutation.mutate(group.id)}
-                      className="text-rose-400 hover:text-rose-300 h-7 text-xs"
+                      className="text-danger hover:text-danger h-7 text-xs"
                     >
-                      <Trash2 className="w-3.5 h-3.5 mr-1" /> Remove Group
+                      <Trash2 className="w-3.5 h-3.5 mr-1" /> Remove
                     </Button>
                   </div>
 
                   {/* Options included in this group */}
-                  <div className="space-y-1">
-                    <div className="text-[11px] font-semibold text-slate-400 uppercase">
-                      Available Options in this Group
+                  <div className="space-y-1.5">
+                    <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">
+                      Available options in this group
                     </div>
-                    <div className="flex flex-wrap gap-2 pt-1">
+                    <div className="flex flex-wrap gap-2 pt-0.5">
                       {group.options?.map((optRel: any) => {
                         const opt = optRel.option || optRel;
                         return (
                           <div
                             key={opt.id}
-                            className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs flex items-center gap-2"
+                            className="px-2.5 py-1 rounded-md bg-app border border-border text-xs flex items-center gap-2"
                           >
-                            <span className="font-medium text-slate-200">{opt.name}</span>
-                            <span className="text-emerald-400 font-mono text-[11px]">
-                              cost: {formatCents(opt.costCents)}
+                            <span className="font-medium text-text">{opt.name}</span>
+                            <span className="text-muted font-mono text-[11px] tabular-nums">
+                              {formatCents(opt.costCents)}
                             </span>
                           </div>
                         );
                       })}
                       {(!group.options || group.options.length === 0) && (
-                        <span className="text-slate-500 text-xs italic">
+                        <span className="text-muted text-xs italic">
                           No options linked to this group yet.
                         </span>
                       )}
@@ -331,8 +316,8 @@ export default function DishDetailPage() {
 
                   {/* Portions if usesPortions */}
                   {group.usesPortions && group.portions?.length > 0 && (
-                    <div className="pt-2 border-t border-slate-800/60 text-xs text-slate-400">
-                      <strong>Supported Portion Sizes:</strong>{' '}
+                    <div className="pt-2 border-t border-border text-xs text-muted">
+                      <strong className="text-text font-medium">Supported portion sizes:</strong>{' '}
                       {group.portions
                         .map(
                           (p: any) =>
@@ -341,13 +326,13 @@ export default function DishDetailPage() {
                         .join(', ')}
                     </div>
                   )}
-                </Card>
+                </div>
               ))}
             </div>
           ) : (
-            <Card className="p-8 text-center text-slate-500 text-xs border-dashed border-slate-800">
+            <div className="p-8 text-center text-muted text-xs border border-dashed border-border rounded-lg bg-surface">
               No option groups configured for this dish. Customers will order this dish as a standard single recipe.
-            </Card>
+            </div>
           )}
         </div>
 
@@ -355,58 +340,56 @@ export default function DishDetailPage() {
         <Dialog open={groupModalOpen} onOpenChange={setGroupModalOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Add Option Group to {dish.name}</DialogTitle>
+              <DialogTitle>Add option group to {dish.name}</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4 py-2 text-xs">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Group Name *
+                <label className="text-xs font-medium text-text block mb-1">
+                  Group name *
                 </label>
-                <input
-                  type="text"
+                <Input
                   required
                   placeholder="e.g. Choose Your Protein"
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
 
               <div className="flex items-center gap-6 pt-1">
-                <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+                <label className="flex items-center gap-2 text-text cursor-pointer">
                   <input
                     type="checkbox"
                     checked={groupRequired}
                     onChange={(e) => setGroupRequired(e.target.checked)}
-                    className="rounded bg-slate-950 border-slate-700 text-emerald-500"
+                    className="rounded bg-app border-border text-brand-solid focus:ring-brand-solid"
                   />
                   <span>Required choice (Must pick one)</span>
                 </label>
 
-                <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+                <label className="flex items-center gap-2 text-text cursor-pointer">
                   <input
                     type="checkbox"
                     checked={groupUsesPortions}
                     onChange={(e) => setGroupUsesPortions(e.target.checked)}
-                    className="rounded bg-slate-950 border-slate-700 text-emerald-500"
+                    className="rounded bg-app border-border text-brand-solid focus:ring-brand-solid"
                   />
                   <span>Uses portion sizes (e.g. Regular, Large)</span>
                 </label>
               </div>
 
               {/* Options multi-select */}
-              <div className="pt-2 border-t border-slate-800 space-y-2">
-                <span className="font-semibold text-slate-300 block">
-                  Select Options to include in this group:
+              <div className="pt-2 border-t border-border space-y-2">
+                <span className="font-medium text-text block">
+                  Select options to include in this group:
                 </span>
-                <div className="max-h-48 overflow-y-auto divide-y divide-slate-850 border border-slate-800 rounded-lg p-2 bg-slate-950">
+                <div className="max-h-48 overflow-y-auto divide-y divide-border border border-border rounded-md p-2 bg-app">
                   {optionsData?.options?.map((opt: any) => {
                     const isSelected = selectedOptionIds.includes(opt.id);
                     return (
                       <label
                         key={opt.id}
-                        className="py-1.5 px-2 flex items-center justify-between cursor-pointer hover:bg-slate-900 rounded"
+                        className="py-1.5 px-2 flex items-center justify-between cursor-pointer hover:bg-raised rounded"
                       >
                         <div className="flex items-center gap-2">
                           <input
@@ -419,11 +402,11 @@ export default function DishDetailPage() {
                                   : [...selectedOptionIds, opt.id]
                               );
                             }}
-                            className="rounded bg-slate-950 border-slate-700 text-emerald-500"
+                            className="rounded bg-surface border-border text-brand-solid focus:ring-brand-solid"
                           />
-                          <span className="text-slate-200">{opt.name}</span>
+                          <span className="text-text">{opt.name}</span>
                         </div>
-                        <span className="text-emerald-400 font-mono text-[11px]">
+                        <span className="text-muted font-mono text-[11px] tabular-nums">
                           {formatCents(opt.costCents)}
                         </span>
                       </label>
@@ -449,7 +432,7 @@ export default function DishDetailPage() {
                 }
                 loading={createGroupMutation.isPending}
               >
-                Create Group
+                Create group
               </Button>
             </DialogFooter>
           </DialogContent>

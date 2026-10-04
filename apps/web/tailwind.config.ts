@@ -1,7 +1,7 @@
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
-  darkMode: ['class'],
+  darkMode: ['class', '[data-theme="dark"]'],
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -10,65 +10,115 @@ const config: Config = {
   theme: {
     container: {
       center: true,
-      padding: '2rem',
+      padding: '1.5rem',
       screens: {
-        '2xl': '1400px',
+        '2xl': '1440px',
       },
     },
     extend: {
       colors: {
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
+        // Calm Density Tokens
+        'bg-app': 'var(--bg-app)',
+        'bg-surface': 'var(--bg-surface)',
+        'bg-raised': 'var(--bg-raised)',
+        'border-token': 'var(--border)',
+        'border-strong': 'var(--border-strong)',
+        'text-main': 'var(--text)',
+        'text-muted': 'var(--text-muted)',
+        'text-faint': 'var(--text-faint)',
+
+        // Brand colors
+        'brand-solid': 'var(--brand-solid)',
+        'brand-solid-text': 'var(--brand-solid-text)',
+        'brand-hover': 'var(--brand-hover)',
+        'brand-text': 'var(--brand-text)',
+        'brand-soft': 'var(--brand-soft)',
+        'focus-ring': 'var(--focus-ring)',
+
+        // Status Colors
+        'status-success': 'var(--status-success-fg)',
+        'status-success-bg': 'var(--status-success-bg)',
+        'status-success-border': 'var(--status-success-border)',
+
+        'status-info': 'var(--status-info-fg)',
+        'status-info-bg': 'var(--status-info-bg)',
+        'status-info-border': 'var(--status-info-border)',
+
+        'status-warning': 'var(--status-warning-fg)',
+        'status-warning-bg': 'var(--status-warning-bg)',
+        'status-warning-border': 'var(--status-warning-border)',
+
+        'status-danger': 'var(--status-danger-fg)',
+        'status-danger-bg': 'var(--status-danger-bg)',
+        'status-danger-border': 'var(--status-danger-border)',
+
+        'status-neutral': 'var(--status-neutral-fg)',
+        'status-neutral-bg': 'var(--status-neutral-bg)',
+        'status-neutral-border': 'var(--status-neutral-border)',
+
+        // Component mapping aliases
+        border: 'var(--border)',
+        input: 'var(--border)',
+        ring: 'var(--focus-ring)',
+        background: 'var(--bg-app)',
+        foreground: 'var(--text)',
+        surface: 'var(--bg-surface)',
+        raised: 'var(--bg-raised)',
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
+          DEFAULT: 'var(--brand-solid)',
+          foreground: 'var(--brand-solid-text)',
         },
         secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))',
+          DEFAULT: 'var(--bg-surface)',
+          foreground: 'var(--text)',
         },
         destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))',
+          DEFAULT: 'var(--status-danger-fg)',
+          foreground: '#FFFFFF',
         },
         muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))',
-        },
-        accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))',
-        },
-        popover: {
-          DEFAULT: 'hsl(var(--popover))',
-          foreground: 'hsl(var(--popover-foreground))',
+          DEFAULT: 'var(--bg-raised)',
+          foreground: 'var(--text-muted)',
         },
         card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))',
+          DEFAULT: 'var(--bg-surface)',
+          foreground: 'var(--text)',
+        },
+        popover: {
+          DEFAULT: 'var(--bg-surface)',
+          foreground: 'var(--text)',
         },
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        DEFAULT: '6px',
+        sm: '6px',
+        md: '6px',
+        lg: '8px',
+        xl: '8px',
+        panel: '8px',
+      },
+      boxShadow: {
+        popover: 'var(--shadow-elevation)',
+        modal: 'var(--shadow-elevation)',
+      },
+      transitionDuration: {
+        DEFAULT: '120ms',
+      },
+      transitionTimingFunction: {
+        DEFAULT: 'ease-out',
+      },
+      fontFamily: {
+        sans: ['var(--font-inter)', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['ui-monospace', 'JetBrains Mono', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       },
       keyframes: {
-        'accordion-down': {
-          from: { height: '0' },
-          to: { height: 'var(--radix-accordion-content-height)' },
-        },
-        'accordion-up': {
-          from: { height: 'var(--radix-accordion-content-height)' },
-          to: { height: '0' },
+        latePulse: {
+          '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+          '50%': { opacity: '0.3', transform: 'scale(0.85)' },
         },
       },
       animation: {
-        'accordion-down': 'accordion-down 0.2s ease-out',
-        'accordion-up': 'accordion-up 0.2s ease-out',
+        'late-pulse': 'latePulse 1.6s ease-in-out infinite',
       },
     },
   },

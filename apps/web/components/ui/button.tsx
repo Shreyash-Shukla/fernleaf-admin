@@ -4,28 +4,33 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 select-none active:scale-[0.98]',
+  'inline-flex items-center justify-center whitespace-nowrap rounded-[6px] text-[13px] font-medium transition-colors duration-120 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed select-none',
   {
     variants: {
       variant: {
         default:
-          'bg-emerald-600 text-white shadow-md shadow-emerald-950/40 hover:bg-emerald-500 hover:shadow-emerald-900/50',
-        destructive:
-          'bg-rose-600 text-white shadow-md shadow-rose-950/40 hover:bg-rose-500',
-        outline:
-          'border border-slate-700/80 bg-slate-900/50 hover:bg-slate-800 hover:text-slate-100 text-slate-300',
+          'bg-[var(--brand-solid)] text-[var(--brand-solid-text)] hover:bg-[var(--brand-hover)] border-0 font-semibold',
+        primary:
+          'bg-[var(--brand-solid)] text-[var(--brand-solid-text)] hover:bg-[var(--brand-hover)] border-0 font-semibold',
         secondary:
-          'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white',
+          'bg-[var(--bg-surface)] text-[var(--text)] border border-[var(--border-strong)] hover:bg-[var(--bg-raised)]',
+        outline:
+          'bg-[var(--bg-surface)] text-[var(--text)] border border-[var(--border-strong)] hover:bg-[var(--bg-raised)]',
         ghost:
-          'hover:bg-slate-800/80 hover:text-slate-100 text-slate-400',
+          'bg-transparent text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-raised)] border-0',
+        destructive:
+          'bg-transparent text-[var(--status-danger-fg)] border border-[var(--status-danger-border)] hover:bg-[var(--status-danger-bg)]',
+        destructiveSolid:
+          'bg-[var(--status-danger-fg)] text-white hover:opacity-90 border-0',
         link:
-          'text-emerald-400 underline-offset-4 hover:underline p-0 h-auto',
+          'text-[var(--brand-text)] hover:underline p-0 h-auto font-medium border-0',
       },
       size: {
-        default: 'h-9 px-4 py-2',
-        sm: 'h-8 rounded-md px-3 text-xs',
-        lg: 'h-11 rounded-lg px-8 text-base font-semibold',
-        icon: 'h-9 w-9',
+        default: 'h-[32px] px-3 text-[13px]',
+        sm: 'h-[28px] px-2.5 text-[12px]',
+        lg: 'h-[36px] px-4 text-[14px]',
+        icon: 'h-[32px] w-[32px] p-0',
+        iconSm: 'h-[28px] w-[28px] p-0',
       },
     },
     defaultVariants: {
@@ -53,9 +58,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         {loading ? (
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5">
             <svg
-              className="animate-spin -ml-1 mr-1 h-4 w-4 text-current"
+              className="animate-spin h-3.5 w-3.5 text-current"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -74,7 +79,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               ></path>
             </svg>
-            {children}
+            <span>{children}</span>
           </span>
         ) : (
           children

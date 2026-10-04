@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
-import { ShieldX, Loader2 } from 'lucide-react';
+import { ShieldX } from 'lucide-react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -19,22 +20,20 @@ export function AppShell({
   requiredAnyPermissions,
 }: AppShellProps) {
   const { user, isLoading, can, canAny, role, landingPath } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
-        <p className="text-sm font-medium">Checking authorization...</p>
+      <div className="min-h-screen bg-[var(--bg-app)] flex flex-col items-center justify-center text-[var(--text-muted)] gap-3 select-none">
+        <div className="w-6 h-6 border-2 border-[var(--border-strong)] border-t-[var(--brand-solid)] rounded-full animate-spin" />
+        <p className="text-[13px] font-medium text-[var(--text-muted)]">Loading workspace...</p>
       </div>
     );
   }
 
   if (!user) {
-    // AuthProvider will push to /login, show fallback while navigating
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+      <div className="min-h-screen bg-[var(--bg-app)] flex flex-col items-center justify-center text-[var(--text-muted)] select-none">
+        <div className="w-6 h-6 border-2 border-[var(--border-strong)] border-t-[var(--brand-solid)] rounded-full animate-spin" />
       </div>
     );
   }
@@ -46,25 +45,20 @@ export function AppShell({
 
   if (!hasAccess) {
     return (
-      <div className="flex h-screen bg-slate-950 overflow-hidden">
-        <div className="hidden lg:block">
-          <Sidebar />
-        </div>
+      <div className="flex h-screen bg-[var(--bg-app)] text-[var(--text)] overflow-hidden min-w-[1280px]">
+        <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <Header onOpenMobile={() => setMobileOpen(true)} />
+          <Header />
           <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-            <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-4">
-              <ShieldX className="w-8 h-8" />
+            <div className="w-12 h-12 rounded-[8px] bg-[var(--status-danger-bg)] border border-[var(--status-danger-border)] text-[var(--status-danger-fg)] flex items-center justify-center mb-3">
+              <ShieldX className="w-6 h-6" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Access Restricted</h1>
-            <p className="text-sm text-slate-400 max-w-md mb-6">
-              Your current role ({role}) does not have permission to view this page.
+            <h1 className="text-[20px] font-semibold text-[var(--text)] mb-1">Access Restricted</h1>
+            <p className="text-[13px] text-[var(--text-muted)] max-w-md mb-5">
+              Your current role ({role}) does not have permission to view this section.
             </p>
-            <Link
-              href={landingPath || '/home'}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              Return to Your Hub
+            <Link href={landingPath || '/home'}>
+              <Button variant="primary">Return to Your Hub</Button>
             </Link>
           </main>
         </div>
@@ -73,30 +67,15 @@ export function AppShell({
   }
 
   return (
-    <div className="flex h-screen bg-slate-950 overflow-hidden">
+    <div className="flex h-screen bg-[var(--bg-app)] text-[var(--text)] overflow-hidden min-w-[1280px]">
       {/* Desktop Sidebar */}
-      <div className="hidden lg:block shrink-0">
-        <Sidebar />
-      </div>
-
-      {/* Mobile Drawer */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setMobileOpen(false)}
-          />
-          <div className="relative z-50 w-72 max-w-[85vw] h-full shadow-2xl">
-            <Sidebar onCloseMobile={() => setMobileOpen(false)} />
-          </div>
-        </div>
-      )}
+      <Sidebar />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header onOpenMobile={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto space-y-6">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-6 bg-[var(--bg-app)]">
+          <div className="max-w-[1720px] mx-auto w-full space-y-6">
             {children}
           </div>
         </main>

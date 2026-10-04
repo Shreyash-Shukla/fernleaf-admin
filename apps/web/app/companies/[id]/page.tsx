@@ -3,30 +3,33 @@
 import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageHeader } from '@/components/shell/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
 import { extractList, formatDate, formatMinutesToTime, minutesToTimeString, timeStringToMinutes } from '@/lib/utils';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Chip } from '@/components/ui/chip';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import {
-  Building2,
   ArrowLeft,
-  Calendar,
-  MapPin,
-  Users2,
-  UtensilsCrossed,
   Plus,
   Trash2,
-  Clock,
-  ShieldCheck,
   Save,
-  PlusCircle,
   EyeOff,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function CompanyDetailPage() {
@@ -47,7 +50,6 @@ export default function CompanyDetailPage() {
   const [addrLine1, setAddrLine1] = useState('');
   const [addrCity, setAddrCity] = useState('');
   const [addrPostcode, setAddrPostcode] = useState('');
-  const [addrIsDefault, setAddrIsDefault] = useState(false);
 
   // Holiday form
   const [holidayDate, setHolidayDate] = useState('');
@@ -216,7 +218,7 @@ export default function CompanyDetailPage() {
   if (isLoading) {
     return (
       <AppShell requiredPermission="companies:read">
-        <div className="py-24 text-center text-slate-500 text-xs">Loading company details...</div>
+        <div className="py-24 text-center text-muted text-xs">Loading company details…</div>
       </AppShell>
     );
   }
@@ -224,10 +226,10 @@ export default function CompanyDetailPage() {
   if (!company) {
     return (
       <AppShell requiredPermission="companies:read">
-        <div className="py-24 text-center text-slate-400">
+        <div className="py-24 text-center text-muted">
           <p>Company not found.</p>
           <Button onClick={() => router.push('/companies')} className="mt-3">
-            Back to Companies
+            Back to companies
           </Button>
         </div>
       </AppShell>
@@ -238,12 +240,12 @@ export default function CompanyDetailPage() {
 
   return (
     <AppShell requiredPermission="companies:read">
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
+        <div className="flex items-center justify-between pb-2 border-b border-border">
           <div className="flex items-center gap-3">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => router.push('/companies')}
               className="h-8 w-8 p-0"
@@ -252,21 +254,19 @@ export default function CompanyDetailPage() {
             </Button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-white">{company.name}</h1>
-                <Badge variant="outline" className="text-[10px]">
-                  {company.tier?.name || 'Default Tier'}
-                </Badge>
+                <h1 className="text-xl font-semibold text-text">{company.name}</h1>
+                <Chip>{company.tier?.name || 'Default Tier'}</Chip>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Billing Contact: {company.billingEmail} • {company.employeeCount ?? companyEmployees.length} employees
+              <p className="text-xs text-muted mt-0.5 tabular-nums">
+                Billing contact: {company.billingEmail} · {company.employeeCount ?? companyEmployees.length} employees
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <Link href={`/billing?companyId=${company.id}`}>
-              <Button variant="outline" size="sm" className="text-xs">
-                View Unbilled Orders
+              <Button variant="ghost" size="sm" className="text-xs text-brand-text">
+                View unbilled orders <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </Link>
           </div>
@@ -274,31 +274,31 @@ export default function CompanyDetailPage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="bg-slate-900 border border-slate-800">
-            <TabsTrigger value="general" className="text-xs">
-              General & Defaults
+          <TabsList>
+            <TabsTrigger value="general">
+              General & defaults
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="text-xs">
-              Calendar & Holidays
+            <TabsTrigger value="calendar">
+              Calendar & holidays
             </TabsTrigger>
-            <TabsTrigger value="addresses" className="text-xs">
+            <TabsTrigger value="addresses">
               Addresses ({company.addresses?.length || 0})
             </TabsTrigger>
-            <TabsTrigger value="employees" className="text-xs">
+            <TabsTrigger value="employees">
               Employees ({company.employeeCount ?? companyEmployees.length})
             </TabsTrigger>
-            <TabsTrigger value="menu" className="text-xs">
-              Menu & Price Hiding
+            <TabsTrigger value="menu">
+              Menu visibility
             </TabsTrigger>
           </TabsList>
 
           {/* TAB 1: General & Defaults */}
           <TabsContent value="general" className="space-y-4">
-            <Card className="border-slate-800 p-6 space-y-6 bg-slate-900/60">
+            <div className="bg-surface border border-border rounded-lg p-5 space-y-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-sm text-white">Company Operations Settings</h3>
-                  <p className="text-xs text-slate-400">
+                  <div className="font-semibold text-sm text-text">Company operations settings</div>
+                  <p className="text-xs text-muted mt-0.5">
                     Default parameters for orders, price tier, and logistics instructions.
                   </p>
                 </div>
@@ -315,23 +315,22 @@ export default function CompanyDetailPage() {
                     })
                   }
                   loading={updateGeneralMutation.isPending}
-                  className="text-xs bg-emerald-600 hover:bg-emerald-500"
                 >
-                  <Save className="w-3.5 h-3.5 mr-1" /> Save Changes
+                  <Save className="w-3.5 h-3.5 mr-1.5" /> Save changes
                 </Button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Assigned Price Tier
+                  <label className="font-medium text-text block mb-1">
+                    Assigned price tier
                   </label>
                   <select
                     value={editTierId}
                     onChange={(e) => setEditTierId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                    className="w-full h-8 px-2.5 bg-app border border-border rounded-md text-xs text-text focus:outline-none focus:ring-1 focus:ring-brand-solid"
                   >
-                    <option value="">Default Tier (Fallback)</option>
+                    <option value="">Default tier (Fallback)</option>
                     {tiersData?.map((t: any) => (
                       <option key={t.id} value={t.id}>
                         {t.name} {t.isDefault ? '(System Default)' : ''}
@@ -341,40 +340,38 @@ export default function CompanyDetailPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Default Delivery Time
+                  <label className="font-medium text-text block mb-1">
+                    Default delivery time
                   </label>
-                  <input
+                  <Input
                     type="time"
                     step={300}
                     value={minutesToTimeString(editDeliveryTimeMin)}
                     onChange={(e) => setEditDeliveryTimeMin(timeStringToMinutes(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Dispatch Lead Time (Minutes before delivery)
+                  <label className="font-medium text-text block mb-1">
+                    Dispatch lead time (minutes before delivery)
                   </label>
-                  <input
+                  <Input
                     type="number"
                     min={15}
                     max={240}
                     value={editDispatchLeadMin}
                     onChange={(e) => setEditDispatchLeadMin(parseInt(e.target.value, 10) || 60)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Default Packaging
+                  <label className="font-medium text-text block mb-1">
+                    Default packaging
                   </label>
                   <select
                     value={editPackaging}
                     onChange={(e) => setEditPackaging(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                    className="w-full h-8 px-2.5 bg-app border border-border rounded-md text-xs text-text focus:outline-none focus:ring-1 focus:ring-brand-solid"
                   >
                     <option value="STANDARD">Standard</option>
                     <option value="INSULATED">Insulated</option>
@@ -383,59 +380,59 @@ export default function CompanyDetailPage() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Standing Driver Instructions
+                  <label className="font-medium text-text block mb-1">
+                    Standing driver instructions
                   </label>
                   <textarea
                     rows={3}
                     placeholder="Instructions for courier (e.g. Park in loading dock B, check in at security desk)"
                     value={editDriverNotes}
                     onChange={(e) => setEditDriverNotes(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                    className="w-full px-3 py-2 bg-app border border-border rounded-md text-xs text-text placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-brand-solid"
                   />
                 </div>
               </div>
 
               {/* Registered Domains Card */}
-              <div className="pt-4 border-t border-slate-800 space-y-3">
+              <div className="pt-4 border-t border-border space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-semibold text-xs text-white">Registered Email Domains</h4>
-                    <p className="text-[11px] text-slate-400">
+                    <div className="font-medium text-xs text-text">Registered email domains</div>
+                    <p className="text-[11px] text-muted">
                       Employees with matching email domains are assigned to this company.
                     </p>
                   </div>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => setDomainModalOpen(true)}
                     className="text-xs h-7"
                   >
-                    <Plus className="w-3 h-3 mr-1" /> Add Domain
+                    <Plus className="w-3 h-3 mr-1" /> Add domain
                   </Button>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
                   {company.domains?.map((d: any) => (
-                    <span
-                      key={d.domain}
-                      className="px-2.5 py-1 rounded bg-slate-950 border border-slate-700 text-xs font-mono text-emerald-400"
-                    >
+                    <Chip key={d.domain}>
                       @{d.domain}
-                    </span>
+                    </Chip>
                   ))}
+                  {(!company.domains || company.domains.length === 0) && (
+                    <span className="text-muted text-xs">No email domains registered.</span>
+                  )}
                 </div>
               </div>
-            </Card>
+            </div>
           </TabsContent>
 
           {/* TAB 2: Calendar & Holidays */}
           <TabsContent value="calendar" className="space-y-4">
-            <Card className="border-slate-800 p-6 space-y-6 bg-slate-900/60">
+            <div className="bg-surface border border-border rounded-lg p-5 space-y-5">
               {/* Working Days Selector */}
               <div>
-                <h3 className="font-semibold text-sm text-white mb-1">Working Days Schedule</h3>
-                <p className="text-xs text-slate-400 mb-3">
+                <div className="font-semibold text-sm text-text mb-1">Working days schedule</div>
+                <p className="text-xs text-muted mb-3">
                   Deliveries cannot be placed on company non-working days.
                 </p>
 
@@ -461,10 +458,10 @@ export default function CompanyDetailPage() {
                           setWorkingDays(updated);
                           updateGeneralMutation.mutate({ workingDays: updated });
                         }}
-                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+                        className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
                           isSelected
-                            ? 'bg-emerald-600 border-emerald-500 text-white'
-                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                            ? 'bg-brand-soft border-brand-solid text-brand-text'
+                            : 'bg-app border-border text-muted hover:text-text'
                         }`}
                       >
                         {label}
@@ -475,101 +472,98 @@ export default function CompanyDetailPage() {
               </div>
 
               {/* Company Holidays */}
-              <div className="pt-4 border-t border-slate-800 space-y-3">
+              <div className="pt-4 border-t border-border space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-semibold text-xs text-white">Company Holidays & Closures</h4>
-                    <p className="text-[11px] text-slate-400">
+                    <div className="font-medium text-xs text-text">Company holidays & closures</div>
+                    <p className="text-[11px] text-muted">
                       Deliveries are blocked on configured company holidays.
                     </p>
                   </div>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => setHolidayModalOpen(true)}
                     className="text-xs h-7"
                   >
-                    <Plus className="w-3 h-3 mr-1" /> Add Holiday
+                    <Plus className="w-3 h-3 mr-1" /> Add holiday
                   </Button>
                 </div>
 
-                <div className="divide-y divide-slate-800 border border-slate-800 rounded-lg overflow-hidden">
+                <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
                   {company.holidays?.length > 0 ? (
                     company.holidays.map((h: any) => (
                       <div
                         key={h.date}
-                        className="p-3 bg-slate-950/50 flex items-center justify-between text-xs"
+                        className="h-11 px-4 bg-app flex items-center justify-between text-xs hover:bg-raised transition-colors"
                       >
                         <div>
-                          <div className="font-semibold text-slate-200">{h.name}</div>
-                          <div className="text-[11px] text-slate-400">{formatDate(h.date)}</div>
+                          <span className="font-medium text-text">{h.name}</span>
+                          <span className="text-muted text-[11px] ml-3 tabular-nums">{formatDate(h.date)}</span>
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => deleteHolidayMutation.mutate(h.date)}
-                          className="h-7 text-rose-400 hover:text-rose-300"
+                          className="h-7 px-2 text-xs text-danger hover:text-danger"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>
                     ))
                   ) : (
-                    <div className="py-6 text-center text-slate-500 text-xs">
+                    <div className="p-6 text-center text-muted text-xs">
                       No custom company holidays configured.
                     </div>
                   )}
                 </div>
               </div>
-            </Card>
+            </div>
           </TabsContent>
 
           {/* TAB 3: Delivery Addresses */}
           <TabsContent value="addresses" className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-sm text-white">Delivery Addresses</h3>
-                <p className="text-xs text-slate-400">
+                <div className="font-semibold text-sm text-text">Delivery addresses</div>
+                <p className="text-xs text-muted mt-0.5">
                   Locations available for dispatch drops for this company.
                 </p>
               </div>
-              <Button size="sm" onClick={() => setAddrModalOpen(true)} className="text-xs">
-                <PlusCircle className="w-3.5 h-3.5 mr-1" /> Add Address
+              <Button size="sm" onClick={() => setAddrModalOpen(true)}>
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> Add address
               </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {company.addresses?.map((addr: any) => (
-                <Card key={addr.id} className="p-4 bg-slate-900/60 border-slate-800 space-y-2">
+                <div key={addr.id} className="p-4 bg-surface border border-border rounded-lg space-y-2 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-white flex items-center gap-1.5">
-                      <MapPin className="w-4 h-4 text-emerald-400" />
+                    <span className="font-semibold text-sm text-text">
                       {addr.label}
                     </span>
                     {addr.isDefault && (
-                      <Badge variant="default" className="text-[10px]">
-                        Default
-                      </Badge>
+                      <Chip>Default</Chip>
                     )}
                   </div>
-                  <div className="text-xs text-slate-300">
+                  <div className="text-text">
                     {addr.line1}
                     {addr.line2 ? `, ${addr.line2}` : ''}
                   </div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-muted">
                     {addr.city} {addr.postcode}
                   </div>
-                  <div className="pt-2 border-t border-slate-800 flex justify-end">
+                  <div className="pt-2 border-t border-border flex justify-end">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => deleteAddressMutation.mutate(addr.id)}
-                      className="text-rose-400 hover:text-rose-300 h-7 text-xs"
+                      className="h-7 text-xs text-danger hover:text-danger"
                     >
                       <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
                     </Button>
                   </div>
-                </Card>
+                </div>
               ))}
             </div>
           </TabsContent>
@@ -578,78 +572,72 @@ export default function CompanyDetailPage() {
           <TabsContent value="employees" className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-sm text-white">Company Employees</h3>
-                <p className="text-xs text-slate-400">
+                <div className="font-semibold text-sm text-text">Company employees</div>
+                <p className="text-xs text-muted mt-0.5">
                   Staff members registered under {company.name}.
                 </p>
               </div>
               <Link href="/employees">
-                <Button size="sm" className="text-xs">
-                  Manage in Employee Hub
+                <Button size="sm" variant="secondary">
+                  Manage in employee hub
                 </Button>
               </Link>
             </div>
 
-            <Card className="border-slate-800 bg-slate-900/40 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[11px]">
-                    <tr>
-                      <th className="py-3 px-4">Name</th>
-                      <th className="py-3 px-4">Email</th>
-                      <th className="py-3 px-4">Address Customization</th>
-                      <th className="py-3 px-4">Time Change</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {companyEmployees.map((emp: any) => (
-                      <tr key={emp.id} className="hover:bg-slate-850/50">
-                        <td className="py-3 px-4 font-semibold text-white">{emp.name}</td>
-                        <td className="py-3 px-4 text-slate-300">{emp.email}</td>
-                        <td className="py-3 px-4">
-                          <Badge variant={emp.canChooseAddress ? 'default' : 'secondary'} className="text-[10px]">
-                            {emp.canChooseAddress ? 'Allowed' : 'Locked'}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant={emp.canChangeTime ? 'default' : 'secondary'} className="text-[10px]">
-                            {emp.canChangeTime ? 'Allowed' : 'Locked'}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+            <div className="bg-surface border border-border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead className="w-40">Address customization</TableHead>
+                    <TableHead className="w-32">Time change</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {companyEmployees.map((emp: any) => (
+                    <TableRow key={emp.id}>
+                      <TableCell className="font-medium text-text">{emp.name}</TableCell>
+                      <TableCell className="text-muted font-mono text-xs">{emp.email}</TableCell>
+                      <TableCell>
+                        <Chip>{emp.canChooseAddress ? 'Allowed' : 'Locked'}</Chip>
+                      </TableCell>
+                      <TableCell>
+                        <Chip>{emp.canChangeTime ? 'Allowed' : 'Locked'}</Chip>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </TabsContent>
 
           {/* TAB 5: Menu & Price Hiding */}
           <TabsContent value="menu" className="space-y-4">
-            <Card className="border-slate-800 p-6 space-y-4 bg-slate-900/60">
+            <div className="bg-surface border border-border rounded-lg p-5 space-y-4">
               <div>
-                <h3 className="font-semibold text-sm text-white">Hidden Categories for {company.name}</h3>
-                <p className="text-xs text-slate-400">
+                <div className="font-semibold text-sm text-text">Hidden categories for {company.name}</div>
+                <p className="text-xs text-muted mt-0.5">
                   Toggle categories to hide them specifically from this client&apos;s employees.
                 </p>
               </div>
 
-              <div className="divide-y divide-slate-800 border border-slate-800 rounded-lg overflow-hidden">
+              <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
                 {categoriesData?.map((cat: any) => {
                   const isHidden = hiddenCatIds.has(cat.id);
                   return (
                     <div
                       key={cat.id}
-                      className="p-3 bg-slate-950/60 flex items-center justify-between text-xs"
+                      className="h-11 px-4 bg-app flex items-center justify-between text-xs hover:bg-raised transition-colors"
                     >
                       <div>
-                        <div className="font-semibold text-slate-200">{cat.name}</div>
-                        <div className="text-[11px] text-slate-500 font-mono">slug: {cat.slug}</div>
+                        <span className="font-medium text-text">{cat.name}</span>
+                        <span className="text-muted text-[11px] font-mono ml-2">/{cat.slug}</span>
                       </div>
 
                       <Button
                         size="sm"
-                        variant={isHidden ? 'destructive' : 'outline'}
+                        variant={isHidden ? 'destructive' : 'secondary'}
                         onClick={() =>
                           toggleHiddenCategoryMutation.mutate({
                             categoryId: cat.id,
@@ -660,7 +648,7 @@ export default function CompanyDetailPage() {
                       >
                         {isHidden ? (
                           <>
-                            <EyeOff className="w-3 h-3 mr-1" /> Hidden from Company
+                            <EyeOff className="w-3 h-3 mr-1" /> Hidden from company
                           </>
                         ) : (
                           'Visible'
@@ -670,7 +658,7 @@ export default function CompanyDetailPage() {
                   );
                 })}
               </div>
-            </Card>
+            </div>
           </TabsContent>
         </Tabs>
 
@@ -678,52 +666,44 @@ export default function CompanyDetailPage() {
         <Dialog open={addrModalOpen} onOpenChange={setAddrModalOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Delivery Address</DialogTitle>
+              <DialogTitle>Add delivery address</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 py-2 text-xs">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
+                <label className="text-xs font-medium text-text block mb-1">
                   Label (e.g. Headquarters, Engineering Annex)
                 </label>
-                <input
-                  type="text"
+                <Input
                   required
                   value={addrLabel}
                   onChange={(e) => setAddrLabel(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Address Line 1
+                <label className="text-xs font-medium text-text block mb-1">
+                  Address line 1
                 </label>
-                <input
-                  type="text"
+                <Input
                   required
                   value={addrLine1}
                   onChange={(e) => setAddrLine1(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">City</label>
-                  <input
-                    type="text"
+                  <label className="text-xs font-medium text-text block mb-1">City</label>
+                  <Input
                     required
                     value={addrCity}
                     onChange={(e) => setAddrCity(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Postal Code</label>
-                  <input
-                    type="text"
+                  <label className="text-xs font-medium text-text block mb-1">Postal code</label>
+                  <Input
                     required
                     value={addrPostcode}
                     onChange={(e) => setAddrPostcode(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                   />
                 </div>
               </div>
@@ -733,6 +713,7 @@ export default function CompanyDetailPage() {
                 Cancel
               </Button>
               <Button
+                disabled={!addrLabel.trim() || !addrLine1.trim() || !addrCity.trim()}
                 onClick={() =>
                   addAddressMutation.mutate({
                     label: addrLabel,
@@ -743,7 +724,7 @@ export default function CompanyDetailPage() {
                 }
                 loading={addAddressMutation.isPending}
               >
-                Add Address
+                Add address
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -751,30 +732,27 @@ export default function CompanyDetailPage() {
 
         {/* Add Holiday Modal */}
         <Dialog open={holidayModalOpen} onOpenChange={setHolidayModalOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>Add Company Holiday</DialogTitle>
+              <DialogTitle>Add company holiday</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 py-2 text-xs">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Date</label>
-                <input
+                <label className="text-xs font-medium text-text block mb-1">Date *</label>
+                <Input
                   type="date"
                   required
                   value={holidayDate}
                   onChange={(e) => setHolidayDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Holiday Name</label>
-                <input
-                  type="text"
+                <label className="text-xs font-medium text-text block mb-1">Holiday name *</label>
+                <Input
                   required
-                  placeholder="e.g. Annual Company Retreat"
+                  placeholder="e.g. Annual Company Offsite"
                   value={holidayName}
                   onChange={(e) => setHolidayName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
             </div>
@@ -783,6 +761,7 @@ export default function CompanyDetailPage() {
                 Cancel
               </Button>
               <Button
+                disabled={!holidayDate || !holidayName.trim()}
                 onClick={() =>
                   addHolidayMutation.mutate({
                     date: holidayDate,
@@ -791,7 +770,7 @@ export default function CompanyDetailPage() {
                 }
                 loading={addHolidayMutation.isPending}
               >
-                Add Holiday
+                Save holiday
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -799,20 +778,20 @@ export default function CompanyDetailPage() {
 
         {/* Add Domain Modal */}
         <Dialog open={domainModalOpen} onOpenChange={setDomainModalOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>Register Additional Email Domain</DialogTitle>
+              <DialogTitle>Register email domain</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 py-2 text-xs">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Domain</label>
-                <input
-                  type="text"
+                <label className="text-xs font-medium text-text block mb-1">
+                  Domain name (without @)
+                </label>
+                <Input
                   required
-                  placeholder="e.g. subsidiary.com"
+                  placeholder="e.g. acme-corp.com"
                   value={newDomain}
                   onChange={(e) => setNewDomain(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
             </div>
@@ -821,10 +800,11 @@ export default function CompanyDetailPage() {
                 Cancel
               </Button>
               <Button
-                onClick={() => addDomainMutation.mutate(newDomain)}
+                disabled={!newDomain.trim()}
+                onClick={() => addDomainMutation.mutate(newDomain.trim())}
                 loading={addDomainMutation.isPending}
               >
-                Register Domain
+                Register domain
               </Button>
             </DialogFooter>
           </DialogContent>

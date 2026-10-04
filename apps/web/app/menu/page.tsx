@@ -2,26 +2,24 @@
 
 import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageHeader } from '@/components/shell/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
 import { extractList, formatCents } from '@/lib/utils';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Chip } from '@/components/ui/chip';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
   UtensilsCrossed,
-  PlusCircle,
-  Eye,
   Plus,
   Trash2,
   Lock,
-  Layers,
-  Sparkles,
-  User,
-  Building,
 } from 'lucide-react';
 
 export default function MenuPage() {
@@ -118,95 +116,88 @@ export default function MenuPage() {
 
   return (
     <AppShell requiredPermission="catalogue:read">
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <UtensilsCrossed className="w-6 h-6 text-emerald-400" />
-              <span>Menu Management</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Organize categories, assign dishes, and preview the live menu experienced by any employee
-            </p>
-          </div>
-
-          <Button
-            size="sm"
-            onClick={() => {
-              setCatName('');
-              setCatSlug('');
-              setCatIsSecret(false);
-              setAddCatModalOpen(true);
-            }}
-            className="text-xs"
-          >
-            <PlusCircle className="w-4 h-4 mr-1.5" />
-            Add Menu Category
-          </Button>
-        </div>
+        <PageHeader
+          title="Menu & Catalogue"
+          subtitle="Organize categories, assign dishes, and preview the live menu experienced by any employee"
+          actions={
+            <Button
+              size="sm"
+              onClick={() => {
+                setCatName('');
+                setCatSlug('');
+                setCatIsSecret(false);
+                setAddCatModalOpen(true);
+              }}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Add category
+            </Button>
+          }
+        />
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="bg-slate-900 border border-slate-800">
-            <TabsTrigger value="categories" className="text-xs">
-              Categories & Dishes Structure
+          <TabsList>
+            <TabsTrigger value="categories">
+              Categories & dishes structure
             </TabsTrigger>
-            <TabsTrigger value="preview" className="text-xs">
-              Preview as Employee (Resolved Tier Pricing)
+            <TabsTrigger value="preview">
+              Preview as employee
             </TabsTrigger>
           </TabsList>
 
           {/* TAB 1: Categories Structure */}
           <TabsContent value="categories" className="space-y-4">
             {catsLoading ? (
-              <div className="py-20 text-center text-slate-500 text-xs">Loading categories...</div>
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-32 w-full" />
+                ))}
+              </div>
             ) : categories && categories.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {categories.map((cat: any) => (
-                  <Card key={cat.id} className="p-5 bg-slate-900/60 border-slate-800 space-y-4">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div key={cat.id} className="bg-surface border border-border rounded-lg overflow-hidden">
+                    <div className="p-3.5 border-b border-border flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-base text-white">{cat.name}</span>
-                        <span className="text-xs font-mono text-slate-400">/{cat.slug}</span>
+                        <span className="font-semibold text-sm text-text">{cat.name}</span>
+                        <span className="text-xs font-mono text-muted">/{cat.slug}</span>
                         {cat.isSecret && (
-                          <Badge variant="warning" className="text-[10px] flex items-center gap-1">
-                            <Lock className="w-3 h-3" /> Secret Category
-                          </Badge>
+                          <Chip>Secret</Chip>
                         )}
                         {!cat.active && (
-                          <Badge variant="secondary" className="text-[10px]">
-                            Inactive
-                          </Badge>
+                          <StatusBadge status="Cancelled" label="Inactive" />
                         )}
                       </div>
 
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="secondary"
                         onClick={() => {
                           setSelectedCatForAdd(cat);
                           setSelectedDishId('');
                         }}
                         className="h-7 text-xs"
                       >
-                        <Plus className="w-3 h-3 mr-1" /> Add Dish
+                        <Plus className="w-3 h-3 mr-1" /> Add dish
                       </Button>
                     </div>
 
                     {/* Items in Category */}
-                    <div className="space-y-2">
+                    <div className="divide-y divide-border">
                       {cat.items?.map((item: any) => (
                         <div
                           key={item.id}
-                          className="p-3 rounded-lg bg-slate-950/70 border border-slate-800 flex items-center justify-between text-xs"
+                          className="h-11 px-4 flex items-center justify-between text-xs hover:bg-raised transition-colors"
                         >
-                          <div>
-                            <span className="font-semibold text-slate-200">{item.dish?.name}</span>
-                            <span className="text-[11px] font-mono text-slate-500 ml-2">
+                          <div className="flex items-center gap-3">
+                            <span className="font-medium text-text">{item.dish?.name}</span>
+                            <span className="font-mono text-muted text-[11px] tabular-nums">
                               SKU: {item.dish?.sku}
                             </span>
-                            <span className="text-slate-400 ml-3">
+                            <span className="text-muted tabular-nums">
                               Cost: {formatCents(item.dish?.costCents)}
                             </span>
                           </div>
@@ -215,7 +206,7 @@ export default function MenuPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => removeItemMutation.mutate(item.id)}
-                            className="h-6 text-rose-400 hover:text-rose-300"
+                            className="h-7 px-2 text-xs text-danger hover:text-danger"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
@@ -223,34 +214,35 @@ export default function MenuPage() {
                       ))}
 
                       {(!cat.items || cat.items.length === 0) && (
-                        <div className="text-slate-500 text-xs italic py-2">
+                        <div className="p-6 text-center text-muted text-xs">
                           No dishes assigned to this category yet.
                         </div>
                       )}
                     </div>
-                  </Card>
+                  </div>
                 ))}
               </div>
             ) : (
-              <div className="py-24 text-center text-slate-500 text-xs">
-                No menu categories created yet.
-              </div>
+              <EmptyState
+                icon={UtensilsCrossed}
+                title="No menu categories"
+                description="Create categories to organize dishes into customer menus."
+                actionLabel="Add category"
+                onAction={() => setAddCatModalOpen(true)}
+              />
             )}
           </TabsContent>
 
           {/* TAB 2: Live Employee Preview */}
           <TabsContent value="preview" className="space-y-4">
-            <Card className="p-4 bg-slate-900/60 border-slate-800 flex flex-wrap items-center gap-4 text-xs">
-              <div className="flex-1 min-w-[240px]">
-                <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                  Preview as Specific Employee
-                </label>
+            <div className="h-12 px-3 bg-surface border border-border rounded-lg flex items-center gap-4 text-xs">
+              <div className="flex-1 max-w-sm">
                 <select
                   value={previewEmployeeId}
                   onChange={(e) => setPreviewEmployeeId(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200"
+                  className="w-full h-8 px-2.5 bg-app border border-border rounded-md text-xs text-text focus:outline-none focus:ring-1 focus:ring-brand-solid"
                 >
-                  <option value="">Default Preview (Default Tier)</option>
+                  <option value="">Default preview (Default tier)</option>
                   {extractList(employeesData).map((emp: any) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name} ({emp.company?.name})
@@ -259,73 +251,67 @@ export default function MenuPage() {
                 </select>
               </div>
 
-              <div className="min-w-[200px]">
-                <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                  Secret Category Slug (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. executive-dining"
+              <div className="w-64">
+                <Input
+                  placeholder="Secret category slug (optional)"
                   value={previewSlug}
                   onChange={(e) => setPreviewSlug(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200"
+                  className="h-8 text-xs"
                 />
               </div>
 
               {previewData?.tier && (
-                <div className="pt-4 text-right">
-                  <span className="text-[11px] text-slate-400">Effective Tier:</span>
-                  <div className="font-bold text-emerald-400 text-sm">
-                    {previewData.tier.name}
-                  </div>
+                <div className="text-xs text-muted tabular-nums ml-auto">
+                  Effective tier: <strong className="text-text font-medium">{previewData.tier.name}</strong>
                 </div>
               )}
-            </Card>
+            </div>
 
             {/* Resolved Menu Grid */}
             {previewLoading ? (
-              <div className="py-20 text-center text-slate-500 text-xs">
-                Resolving menu and tier prices...
+              <div className="p-12 text-center text-muted text-xs">
+                Resolving menu and tier prices…
               </div>
             ) : previewData?.categories?.length > 0 ? (
               <div className="space-y-6">
                 {previewData.categories.map((category: any) => (
                   <div key={category.id} className="space-y-3">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-400 border-b border-slate-800 pb-2 flex items-center justify-between">
-                      <span>{category.name}</span>
-                      <span className="text-slate-500 text-xs font-normal">
-                        {category.dishes?.length || 0} orderable dish(es)
+                    <div className="border-b border-border pb-1.5 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-text uppercase tracking-wider">
+                        {category.name}
                       </span>
-                    </h3>
+                      <span className="text-muted text-xs tabular-nums">
+                        {category.dishes?.length || 0} dish(es)
+                      </span>
+                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {category.dishes?.map((dish: any) => (
-                        <Card key={dish.id} className="p-4 bg-slate-900/60 border-slate-800 space-y-3">
+                        <div key={dish.id} className="p-4 bg-surface border border-border rounded-lg space-y-2">
                           <div className="flex items-start justify-between">
                             <div>
-                              <h4 className="font-semibold text-sm text-white">{dish.name}</h4>
-                              <span className="text-[11px] font-mono text-slate-400">
+                              <div className="font-medium text-sm text-text">{dish.name}</div>
+                              <span className="text-[11px] font-mono text-muted tabular-nums">
                                 SKU: {dish.sku}
                               </span>
                             </div>
-                            <span className="font-bold text-sm text-emerald-400">
+                            <span className="font-semibold text-sm tabular-nums text-text">
                               {formatCents(dish.priceCents)}
                             </span>
                           </div>
 
                           {dish.description && (
-                            <p className="text-xs text-slate-400 line-clamp-2">{dish.description}</p>
+                            <p className="text-xs text-muted line-clamp-2">{dish.description}</p>
                           )}
 
-                          {/* Options in groups */}
                           {dish.optionGroups?.length > 0 && (
-                            <div className="p-2.5 rounded bg-slate-950 border border-slate-800 text-[11px] space-y-1.5">
-                              <span className="font-semibold text-slate-300 block">
-                                Customization Options:
+                            <div className="pt-2 border-t border-border text-[11px] space-y-1">
+                              <span className="font-medium text-muted block uppercase tracking-wider text-[10px]">
+                                Customizations:
                               </span>
                               {dish.optionGroups.map((group: any) => (
-                                <div key={group.id} className="text-slate-400">
-                                  <strong className="text-slate-200">{group.name}:</strong>{' '}
+                                <div key={group.id} className="text-muted">
+                                  <strong className="text-text font-normal">{group.name}:</strong>{' '}
                                   {group.options
                                     .map((o: any) => `${o.name} (${formatCents(o.priceCents)})`)
                                     .join(', ')}
@@ -333,14 +319,14 @@ export default function MenuPage() {
                               ))}
                             </div>
                           )}
-                        </Card>
+                        </div>
                       ))}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="py-24 text-center text-slate-500 text-xs">
+              <div className="p-12 text-center text-muted text-xs bg-surface border border-border rounded-lg">
                 No dishes orderable for this employee on their effective tier.
               </div>
             )}
@@ -351,16 +337,15 @@ export default function MenuPage() {
         <Dialog open={addCatModalOpen} onOpenChange={setAddCatModalOpen}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>Add Menu Category</DialogTitle>
+              <DialogTitle>Add menu category</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-3 py-2 text-xs">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Category Name *
+                <label className="text-xs font-medium text-text block mb-1">
+                  Category name *
                 </label>
-                <input
-                  type="text"
+                <Input
                   required
                   placeholder="e.g. Bowls & Curries"
                   value={catName}
@@ -370,33 +355,30 @@ export default function MenuPage() {
                       setCatSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
                     }
                   }}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  URL Slug * (Unique)
+                <label className="text-xs font-medium text-text block mb-1">
+                  URL slug * (unique)
                 </label>
-                <input
-                  type="text"
+                <Input
                   required
                   placeholder="e.g. bowls-and-curries"
                   value={catSlug}
                   onChange={(e) => setCatSlug(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
 
-              <div className="pt-2 border-t border-slate-800">
-                <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+              <div className="pt-2 border-t border-border">
+                <label className="flex items-center gap-2 text-text cursor-pointer">
                   <input
                     type="checkbox"
                     checked={catIsSecret}
                     onChange={(e) => setCatIsSecret(e.target.checked)}
-                    className="rounded bg-slate-950 border-slate-700 text-emerald-500"
+                    className="rounded bg-app border-border text-brand-solid focus:ring-brand-solid"
                   />
-                  <span>Secret category (Hidden from standard listing; reachable by slug)</span>
+                  <span>Secret category (Hidden from standard listing; accessible via slug)</span>
                 </label>
               </div>
             </div>
@@ -416,7 +398,7 @@ export default function MenuPage() {
                 }
                 loading={createCategoryMutation.isPending}
               >
-                Create Category
+                Create category
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -426,17 +408,17 @@ export default function MenuPage() {
         <Dialog open={!!selectedCatForAdd} onOpenChange={(open) => !open && setSelectedCatForAdd(null)}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Add Dish to {selectedCatForAdd?.name}</DialogTitle>
+              <DialogTitle>Add dish to {selectedCatForAdd?.name}</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-3 py-2 text-xs">
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Select Dish</label>
+              <label className="text-xs font-medium text-text block mb-1">Select dish</label>
               <select
                 value={selectedDishId}
                 onChange={(e) => setSelectedDishId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
+                className="w-full h-8 px-2.5 bg-app border border-border rounded-md text-xs text-text focus:outline-none focus:ring-1 focus:ring-brand-solid"
               >
-                <option value="">Select a dish from catalogue...</option>
+                <option value="">Select a dish from catalogue…</option>
                 {extractList(dishesData).map((d: any) => (
                   <option key={d.id} value={d.id}>
                     {d.name} ({d.sku}) — Cost {formatCents(d.costCents)}
@@ -459,7 +441,7 @@ export default function MenuPage() {
                 }
                 loading={addItemMutation.isPending}
               >
-                Add Dish to Menu
+                Add dish to menu
               </Button>
             </DialogFooter>
           </DialogContent>

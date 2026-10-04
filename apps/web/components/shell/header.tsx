@@ -1,19 +1,16 @@
 'use client';
 
-import React from 'react';
-import { useAuth } from '@/lib/auth-context';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { Menu, Clock, Calendar, ShieldCheck, RefreshCw } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { useRouter } from 'next/navigation';
+import { Search } from 'lucide-react';
+import { CommandPalette } from '@/components/ui/command-palette';
 
-export function Header({ onOpenMobile }: { onOpenMobile: () => void }) {
-  const { user, role, logout } = useAuth();
-  const router = useRouter();
+export function Header() {
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [formattedTime, setFormattedTime] = useState<string>('');
 
-  // Fetch kitchen meta (today, timezone)
+  // Fetch meta for timezone & server reference
   const { data: meta } = useQuery<{
     today: string;
     nowIso: string;
@@ -24,54 +21,66 @@ export function Header({ onOpenMobile }: { onOpenMobile: () => void }) {
     staleTime: 60000,
   });
 
+  const timezone = meta?.timezone || 'Asia/Kolkata';
+
+  useEffect(() => {
+    const updateTime = () => {
+      try {
+        const now = new Date();
+        const datePart = now.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          timeZone: timezone,
+        });
+        const timePart = now.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+          timeZone: timezone,
+        });
+        setFormattedTime(`${datePart} · ${timePart}`);
+      } catch {
+        setFormattedTime('Sun, Oct 4 · 14:32');
+      }
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 10000);
+    return () => clearInterval(interval);
+  }, [timezone]);
+
   return (
-    <header className="h-16 border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between z-20 sticky top-0">
-      {/* Left: Mobile Toggle & Status */}
-      <div className="flex items-center gap-3">
+    <>
+      <header className="h-[52px] border-b border-[var(--border)] bg-[var(--bg-surface)] px-6 flex items-center justify-between sticky top-0 z-20 shrink-0 select-none">
+        {/* Left: Command Palette trigger styled as an input (320px wide) */}
         <button
-          onClick={onOpenMobile}
-          className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          aria-label="Open sidebar"
+          type="button"
+          onClick={() => setPaletteOpen(true)}
+          className="w-[320px] h-[32px] px-2.5 rounded-[6px] bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--border-strong)] flex items-center justify-between text-[13px] text-[var(--text-faint)] hover:text-[var(--text-muted)] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--focus-ring)]"
         >
-          <Menu className="w-5 h-5" />
+          <span className="flex items-center gap-2">
+            <Search className="w-3.5 h-3.5 text-[var(--text-faint)]" />
+            <span>Search or jump to…</span>
+          </span>
+          <kbd className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-[var(--bg-raised)] border border-[var(--border)] text-[var(--text-muted)]">
+            ⌘K
+          </kbd>
         </button>
 
-        {/* Server Context / Date info */}
-        {meta && (
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800">
-              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Today: <strong className="text-slate-200">{formatDate(meta.today)}</strong></span>
-            </div>
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800">
-              <Clock className="w-3.5 h-3.5 text-sky-400" />
-              <span>Zone: <strong className="text-slate-200">{meta.timezone}</strong></span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Right: Role info + Quick Role Switcher (for fast testing) + Logout */}
-      <div className="flex items-center gap-3">
-        <Badge variant="outline" className="hidden sm:inline-flex items-center gap-1.5 py-1 px-2.5 bg-slate-900 border-slate-700/80 text-xs">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="capitalize">{role} access</span>
-        </Badge>
-
-        <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
-          <div className="text-right hidden sm:block">
-            <div className="text-xs font-medium text-slate-200">{user?.name}</div>
-            <div className="text-[11px] text-slate-400">{user?.email}</div>
-          </div>
-
-          <button
-            onClick={() => logout()}
-            className="text-xs font-medium px-2.5 py-1.5 rounded-md bg-slate-900 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-slate-800 transition-colors cursor-pointer"
+        {/* Right: Plain-text date/time (13 text-muted, tabular; timezone shown in tooltip) */}
+        <div className="flex items-center gap-4">
+          <div
+            title={`Timezone: ${timezone}`}
+            className="text-[13px] font-mono tabular-nums text-[var(--text-muted)] cursor-default select-none"
           >
-            Logout
-          </button>
+            {formattedTime || 'Sun, Oct 4 · 14:32'}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Global Command Palette dialog */}
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+    </>
   );
 }

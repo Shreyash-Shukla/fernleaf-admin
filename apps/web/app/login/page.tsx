@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UtensilsCrossed, Lock, Mail, Loader2, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,7 +36,6 @@ export default function LoginPage() {
       }
 
       await refetch();
-      // Redirect to role landing path
       router.push(data.landingPath || '/dashboard');
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred');
@@ -51,104 +51,93 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950">
-      <div className="w-full max-w-md bg-slate-900/80 border border-slate-800/90 backdrop-blur-xl rounded-2xl p-8 shadow-2xl relative">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-4 shadow-inner">
-            <UtensilsCrossed className="w-6 h-6" />
+    <div className="min-h-screen flex items-center justify-center p-4 bg-app">
+      <div className="w-full max-w-sm bg-surface border border-border rounded-lg p-6 space-y-5">
+        <div className="text-center space-y-1">
+          <div className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-brand-soft text-brand-text mb-2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white mb-1.5">Fernleaf Kitchen</h1>
-          <p className="text-xs text-slate-400">Admin Operations & Meal Logistics Portal</p>
+          <h1 className="text-base font-semibold text-text">Fernleaf</h1>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Kitchen Admin</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-3 text-xs text-rose-300 bg-rose-950/60 border border-rose-800/60 rounded-lg">
+          <div className="p-3 text-xs text-danger bg-danger/10 border border-danger/28 rounded-md">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label htmlFor="email" className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Staff Email
+            <label htmlFor="email" className="block text-xs font-medium text-text mb-1">
+              Staff email
             </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@test.com"
-                className="w-full pl-9 pr-3.5 py-2.5 bg-slate-950/70 border border-slate-700/80 rounded-lg text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-              />
-            </div>
+            <Input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@test.com"
+            />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-xs font-semibold text-slate-300 mb-1.5">
+            <label htmlFor="password" className="block text-xs font-medium text-text mb-1">
               Password
             </label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-9 pr-3.5 py-2.5 bg-slate-950/70 border border-slate-700/80 rounded-lg text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-              />
-            </div>
+            <Input
+              id="password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg shadow-lg shadow-emerald-950/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer mt-2"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Signing in...</span>
-              </>
-            ) : (
-              <>
-                <span>Sign in to Dashboard</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+          <div className="pt-2">
+            <Button
+              type="submit"
+              disabled={loading}
+              loading={loading}
+              className="w-full"
+            >
+              Sign in to operations
+            </Button>
+          </div>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-slate-800">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2.5 text-center">
-            One-Click Test Accounts
+        <div className="pt-4 border-t border-border space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted text-center">
+            One-click test accounts
           </p>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { role: 'admin', label: 'Admin', desc: 'Full Access' },
-              { role: 'kitchen', label: 'Kitchen', desc: 'Prep Board' },
-              { role: 'dispatch', label: 'Dispatch', desc: 'Staging & Drops' },
-              { role: 'driver', label: 'Driver', desc: 'Deliveries View' },
-            ].map(({ role, label, desc }) => (
+              { role: 'admin', label: 'Admin', desc: 'Full operations' },
+              { role: 'kitchen', label: 'Kitchen', desc: 'Prep board' },
+              { role: 'dispatch', label: 'Dispatch', desc: 'Staging & drops' },
+              { role: 'driver', label: 'Driver', desc: 'Deliveries run' },
+            ].map(({ role, label }) => (
               <button
                 key={role}
                 type="button"
                 onClick={() => fillCredentials(`${role}@test.com`)}
-                className="py-2 px-2.5 text-left bg-slate-800/60 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-700/50 transition-colors cursor-pointer group"
+                className="py-1.5 px-2 text-left bg-app hover:bg-raised text-text rounded-md border border-border transition-colors cursor-pointer"
               >
-                <div className="text-xs font-medium text-slate-200 group-hover:text-emerald-400 transition-colors">
+                <div className="text-xs font-medium text-text">
                   {label}
                 </div>
-                <div className="text-[10px] text-slate-500 truncate">{role}@test.com</div>
+                <div className="text-[11px] font-mono text-muted truncate">{role}@test.com</div>
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-slate-500 text-center mt-3">
-            Password: <code className="text-emerald-400 bg-slate-950 px-1 py-0.5 rounded text-[11px]">Test@1234</code>
+          <p className="text-[11px] text-muted text-center pt-1 font-mono tabular-nums">
+            Password: Test@1234
           </p>
         </div>
       </div>

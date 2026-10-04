@@ -2,31 +2,41 @@
 
 import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageHeader } from '@/components/shell/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { extractList, formatMinutesToTime } from '@/lib/utils';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { extractList, formatMinutesToTime, cn } from '@/lib/utils';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Chip } from '@/components/ui/chip';
+import { Drawer } from '@/components/ui/drawer';
+import { StateBanner } from '@/components/ui/state-banner';
+import { EmptyState } from '@/components/ui/empty-state';
+import { TableSkeletonRows } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import {
   Building2,
-  PlusCircle,
+  Plus,
   Search,
-  MapPin,
-  Clock,
-  ArrowRight,
+  MoreHorizontal,
   Eye,
   Mail,
-  ShieldCheck,
+  ExternalLink,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 
 export default function CompaniesPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
+  const [inspectCompany, setInspectCompany] = useState<any>(null);
 
   // Form State
   const [name, setName] = useState('');
@@ -42,7 +52,7 @@ export default function CompaniesPage() {
   const [addrPostcode, setAddrPostcode] = useState('');
 
   // Fetch Companies
-  const { data, isLoading } = useQuery<{ items: any[] }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: any[] }>({
     queryKey: ['companies', 'list', search],
     queryFn: () => fetchApi(`/companies?q=${search}&limit=100`),
   });
@@ -60,15 +70,18 @@ export default function CompaniesPage() {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
-    onSuccess: (newComp) => {
-      toast.success('Company created successfully!');
-      setCreateModalOpen(false);
+    onSuccess: () => {
+      toast.success('Company created successfully');
+      setCreateDrawerOpen(false);
       setName('');
       setDomain('');
       setTierId('');
       setBillingName('');
       setBillingEmail('');
       setBillingAddress('');
+      setAddrLine1('');
+      setAddrCity('');
+      setAddrPostcode('');
       queryClient.invalidateQueries({ queryKey: ['companies'] });
     },
     onError: (err: any) => {
@@ -78,263 +91,367 @@ export default function CompaniesPage() {
 
   const companies = extractList(data);
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !domain || !billingEmail) {
+      toast.error('Please complete required fields');
+      return;
+    }
+    createMutation.mutate({
+      name,
+      domain,
+      tierId: tierId || undefined,
+      billingName,
+      billingEmail,
+      billingAddress,
+      address: addrLine1
+        ? {
+            line1: addrLine1,
+            city: addrCity || 'San Francisco',
+            postcode: addrPostcode || '94105',
+          }
+        : undefined,
+    });
+  };
+
   return (
     <AppShell requiredPermission="companies:read">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <Building2 className="w-6 h-6 text-emerald-400" />
-              <span>Corporate Clients</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Manage client companies, email domains, delivery calendars, and price tier mappings
-            </p>
-          </div>
+      <div className="space-y-4">
+        {/* Page Header */}
+        <PageHeader
+          title="Corporate Clients"
+          subtitle="Client companies, verified email domains, and billing tier assignments"
+          primaryAction={
+            <Button variant="primary" onClick={() => setCreateDrawerOpen(true)}>
+              <Plus className="w-4 h-4 mr-1.5 stroke-[2.5]" /> Add client
+            </Button>
+          }
+          contextBar={
+            <div className="flex items-center justify-between w-full">
+              <div className="relative w-64">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-[var(--text-faint)]" />
+                <input
+                  type="text"
+                  placeholder="Search clients or domains..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-8 pr-2.5 h-[28px] bg-[var(--bg-surface)] border border-[var(--border)] rounded-[6px] text-[12px] text-[var(--text)] placeholder:text-[var(--text-faint)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--focus-ring)]"
+                />
+              </div>
 
-          <Button size="sm" onClick={() => setCreateModalOpen(true)} className="text-xs">
-            <PlusCircle className="w-4 h-4 mr-1.5" />
-            Add Company
-          </Button>
-        </div>
+              <div className="text-[12px] text-[var(--text-muted)] font-mono">
+                {companies.length} active clients
+              </div>
+            </div>
+          }
+        />
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search company name, domain, or billing email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-700/80 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+        {isError && (
+          <StateBanner
+            variant="error"
+            message="Failed to load corporate clients"
+            onRetry={() => refetch()}
           />
-        </div>
-
-        {/* Companies Grid */}
-        {isLoading ? (
-          <div className="py-20 text-center text-slate-500 text-xs">Loading companies...</div>
-        ) : companies.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {companies.map((comp: any) => (
-              <Card
-                key={comp.id}
-                className="bg-slate-900/60 border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between"
-              >
-                <div className="p-5 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-bold text-base text-white">{comp.name}</h3>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {comp.domains?.map((d: any) => (
-                          <span
-                            key={d.domain}
-                            className="px-1.5 py-0.5 rounded bg-slate-950 text-slate-400 text-[10px] font-mono border border-slate-800"
-                          >
-                            @{d.domain}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="text-[10px]">
-                      {comp.tier?.name || 'Default Tier'}
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs text-slate-400 pt-2 border-t border-slate-800/80">
-                    <div className="flex items-center gap-1.5 text-slate-300">
-                      <Mail className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{comp.billingEmail}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-slate-400">
-                      <Clock className="w-3.5 h-3.5 text-slate-500" />
-                      <span>
-                        Default Delivery: {formatMinutesToTime(comp.defaultDeliveryTimeMin)} ({comp.defaultPackaging})
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-slate-400">
-                      <Building2 className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{comp.employees?.length || 0} active employees</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 pt-0 border-t border-slate-800/60 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-500">
-                    {comp.addresses?.length || 0} delivery address(es)
-                  </span>
-                  <Link href={`/companies/${comp.id}`}>
-                    <Button variant="outline" size="sm" className="h-7 text-xs">
-                      Manage Company <ArrowRight className="w-3 h-3 ml-1" />
-                    </Button>
-                  </Link>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="py-24 text-center text-slate-500 text-xs">
-            No corporate clients found matching your query.
-          </div>
         )}
 
-        {/* Create Company Modal */}
-        <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Add Corporate Client</DialogTitle>
-            </DialogHeader>
+        {/* DataTable Container */}
+        <div className="rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-[13px] border-collapse">
+              <thead className="bg-[var(--bg-raised)] border-b border-[var(--border)] sticky top-0 select-none">
+                <tr className="h-[36px]">
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                    COMPANY
+                  </th>
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                    DOMAINS
+                  </th>
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                    TIER
+                  </th>
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                    BILLING EMAIL
+                  </th>
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                    DELIVERY WINDOW
+                  </th>
+                  <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] text-right">
+                    EMPLOYEES
+                  </th>
+                  <th className="w-[44px] px-3 py-1.5 text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {isLoading ? (
+                  <TableSkeletonRows columns={7} rows={6} />
+                ) : companies.length > 0 ? (
+                  companies.map((comp: any) => (
+                    <tr
+                      key={comp.id}
+                      onClick={() => setInspectCompany(comp)}
+                      className="h-[40px] hover:bg-[var(--bg-raised)] transition-colors cursor-pointer"
+                    >
+                      <td className="px-3 py-2 font-medium text-[var(--text)]">
+                        {comp.name}
+                      </td>
 
-            <div className="space-y-3 py-2 text-xs">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Company Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Acme Tech Labs"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
-                />
-              </div>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-1">
+                          {comp.domains?.map((d: any) => (
+                            <Chip key={d.domain} label={`@${d.domain}`} className="font-mono text-[10px]" />
+                          ))}
+                        </div>
+                      </td>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Corporate Email Domain * (Unique, no public domains like gmail)
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. acmetech.io"
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
-                />
-              </div>
+                      <td className="px-3 py-2">
+                        <Chip label={comp.tier?.name || 'Default Tier'} />
+                      </td>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Price Tier (Optional - inherits Default Tier if blank)
-                </label>
-                <select
-                  value={tierId}
-                  onChange={(e) => setTierId(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
-                >
-                  <option value="">Default Tier</option>
-                  {tiersData?.map((t: any) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} {t.isDefault ? '(Default)' : ''}
-                    </option>
+                      <td className="px-3 py-2 text-[var(--text-muted)]">
+                        {comp.billingEmail}
+                      </td>
+
+                      <td className="px-3 py-2 font-mono text-[12px] text-[var(--text-muted)]">
+                        {formatMinutesToTime(comp.defaultDeliveryTimeMin)} ({comp.defaultPackaging})
+                      </td>
+
+                      <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text)]">
+                        {comp.employees?.length ?? 0}
+                      </td>
+
+                      <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="h-[24px] w-[24px] rounded-[4px] hover:bg-[var(--bg-raised)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+                            >
+                              <MoreHorizontal className="w-3.5 h-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-36">
+                            <DropdownMenuItem onClick={() => setInspectCompany(comp)}>
+                              <Eye className="w-3.5 h-3.5 mr-2" /> Inspect
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/companies/${comp.id}`}>
+                                <ExternalLink className="w-3.5 h-3.5 mr-2" /> Manage account
+                              </Link>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7}>
+                      <EmptyState message="No corporate clients found matching your search." />
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="h-[40px] px-4 border-t border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between text-[12px] text-[var(--text-muted)]">
+            <span>Showing {companies.length} clients</span>
+          </div>
+        </div>
+
+        {/* Inspect Company Drawer */}
+        <Drawer
+          open={!!inspectCompany}
+          onClose={() => setInspectCompany(null)}
+          title={inspectCompany?.name}
+          subtitle={`Billing Tier: ${inspectCompany?.tier?.name || 'Default'}`}
+          footer={
+            inspectCompany ? (
+              <Link href={`/companies/${inspectCompany.id}`}>
+                <Button variant="primary" size="sm">Manage Full Client Profile</Button>
+              </Link>
+            ) : null
+          }
+        >
+          {inspectCompany && (
+            <div className="space-y-4 text-[13px]">
+              <div className="space-y-1">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] block">
+                  Allowed Email Domains
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {inspectCompany.domains?.map((d: any) => (
+                    <Chip key={d.domain} label={`@${d.domain}`} className="font-mono" />
                   ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Billing Contact Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Accounts Payable"
-                    value={billingName}
-                    onChange={(e) => setBillingName(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Billing Email *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="billing@acmetech.io"
-                    value={billingEmail}
-                    onChange={(e) => setBillingEmail(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
-                  />
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Primary Delivery Address Line 1 *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="100 Innovation Blvd, Suite 400"
-                  value={addrLine1}
-                  onChange={(e) => setAddrLine1(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
-                />
+              <div className="space-y-1">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] block">
+                  Billing Contact
+                </span>
+                <div className="p-2.5 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border)]">
+                  <div className="font-medium text-[var(--text)]">{inspectCompany.billingName || 'Accounts Payable'}</div>
+                  <div className="text-[12px] text-[var(--text-muted)]">{inspectCompany.billingEmail}</div>
+                  {inspectCompany.billingAddress && (
+                    <div className="text-[12px] text-[var(--text-faint)] mt-1">{inspectCompany.billingAddress}</div>
+                  )}
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    City *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Bangalore"
-                    value={addrCity}
-                    onChange={(e) => setAddrCity(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Postal Code *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="560100"
-                    value={addrPostcode}
-                    onChange={(e) => setAddrPostcode(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
-                  />
+              <div className="space-y-1">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] block">
+                  Delivery Logistics
+                </span>
+                <div className="p-2.5 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border)] space-y-1 text-[12px] text-[var(--text-muted)]">
+                  <div>Default Window: <strong className="text-[var(--text)]">{formatMinutesToTime(inspectCompany.defaultDeliveryTimeMin)}</strong></div>
+                  <div>Default Packaging: <strong className="text-[var(--text)]">{inspectCompany.defaultPackaging}</strong></div>
+                  {inspectCompany.driverNotes && (
+                    <div className="text-[11px] text-[var(--status-warning-fg)] pt-1 border-t border-[var(--border)]">
+                      Driver Instructions: {inspectCompany.driverNotes}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
+          )}
+        </Drawer>
 
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setCreateModalOpen(false)}>
+        {/* Add Company Drawer (Labels above inputs 12/500, inputs 32px, 2-col max 720px, Save + Cancel footer) */}
+        <Drawer
+          open={createDrawerOpen}
+          onClose={() => setCreateDrawerOpen(false)}
+          title="Add Corporate Client"
+          subtitle="Register client organization, domain whitelist, and invoicing details"
+          footer={
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setCreateDrawerOpen(false)}>
                 Cancel
               </Button>
               <Button
-                onClick={() =>
-                  createMutation.mutate({
-                    name,
-                    domain,
-                    tierId: tierId || undefined,
-                    billingName,
-                    billingEmail,
-                    billingAddress: `${addrLine1}, ${addrCity} ${addrPostcode}`,
-                    address: {
-                      label: 'Headquarters',
-                      line1: addrLine1,
-                      city: addrCity,
-                      postcode: addrPostcode,
-                      isDefault: true,
-                    },
-                  })
-                }
+                variant="primary"
+                size="sm"
+                onClick={handleSubmit}
                 loading={createMutation.isPending}
-                className="bg-emerald-600 hover:bg-emerald-500 font-bold"
               >
-                Create Company
+                Save client
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </>
+          }
+        >
+          <form onSubmit={handleSubmit} className="space-y-3.5 max-w-[720px]">
+            <div>
+              <label className="text-[12px] font-medium text-[var(--text-muted)] block mb-1">
+                Company Name *
+              </label>
+              <Input
+                type="text"
+                required
+                placeholder="e.g. Acme Tech Labs"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-[12px] font-medium text-[var(--text-muted)] block mb-1">
+                Corporate Email Domain *
+              </label>
+              <Input
+                type="text"
+                required
+                placeholder="e.g. acmetech.io"
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-[12px] font-medium text-[var(--text-muted)] block mb-1">
+                Price Tier
+              </label>
+              <select
+                value={tierId}
+                onChange={(e) => setTierId(e.target.value)}
+                className="w-full h-[32px] px-2.5 rounded-[6px] bg-[var(--bg-surface)] border border-[var(--border)] text-[13px] text-[var(--text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--focus-ring)]"
+              >
+                <option value="">Default Tier</option>
+                {tiersData?.map((t: any) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} {t.isDefault ? '(Default)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[12px] font-medium text-[var(--text-muted)] block mb-1">
+                  Billing Contact Name
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Accounts Payable"
+                  value={billingName}
+                  onChange={(e) => setBillingName(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="text-[12px] font-medium text-[var(--text-muted)] block mb-1">
+                  Billing Email *
+                </label>
+                <Input
+                  type="email"
+                  required
+                  placeholder="billing@company.com"
+                  value={billingEmail}
+                  onChange={(e) => setBillingEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[12px] font-medium text-[var(--text-muted)] block mb-1">
+                Billing Address
+              </label>
+              <Input
+                type="text"
+                placeholder="100 Market St, Suite 400"
+                value={billingAddress}
+                onChange={(e) => setBillingAddress(e.target.value)}
+              />
+            </div>
+
+            <div className="pt-2 border-t border-[var(--border)] space-y-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] block">
+                Primary Delivery Address (Optional)
+              </span>
+              <Input
+                type="text"
+                placeholder="Street Address"
+                value={addrLine1}
+                onChange={(e) => setAddrLine1(e.target.value)}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  type="text"
+                  placeholder="City"
+                  value={addrCity}
+                  onChange={(e) => setAddrCity(e.target.value)}
+                />
+                <Input
+                  type="text"
+                  placeholder="Postcode"
+                  value={addrPostcode}
+                  onChange={(e) => setAddrPostcode(e.target.value)}
+                />
+              </div>
+            </div>
+          </form>
+        </Drawer>
       </div>
     </AppShell>
   );

@@ -2,54 +2,64 @@
 
 import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageHeader } from '@/components/shell/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { extractList, formatCents, formatDate } from '@/lib/utils';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { extractList, formatCents, formatDate, cn } from '@/lib/utils';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Drawer } from '@/components/ui/drawer';
+import { StateBanner } from '@/components/ui/state-banner';
+import { EmptyState } from '@/components/ui/empty-state';
+import { TableSkeletonRows } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
   Receipt,
-  Building,
-  DollarSign,
+  Plus,
+  MoreHorizontal,
   CheckCircle2,
   Clock,
-  PlusCircle,
-  FileText,
-  AlertCircle,
   ArrowRight,
   Eye,
+  Check,
+  ChevronRight,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 
 export default function BillingPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('unbilled');
+  const [activeTab, setActiveTab] = useState<'unbilled' | 'invoices' | 'adjustments'>('unbilled');
 
-  // Selected company for generating invoice
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
-  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  // Batch Invoice Modal Stepper State (3-step stepper)
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
+  const [stepperStep, setStepperStep] = useState<1 | 2 | 3>(1);
+  const [selectedBatchCompanyId, setSelectedBatchCompanyId] = useState<string>('');
 
-  // View invoice detail modal
+  // View invoice detail drawer
   const [viewInvoiceId, setViewInvoiceId] = useState<string | null>(null);
 
   // 1. Fetch Unbilled Summary
-  const { data: unbilledData, isLoading: unbilledLoading } = useQuery<any>({
+  const { data: unbilledData, isLoading: unbilledLoading, isError: unbilledError, refetch: refetchUnbilled } = useQuery<any>({
     queryKey: ['billing', 'unbilled-summary'],
     queryFn: () => fetchApi('/billing/unbilled'),
   });
 
-  // 2. Fetch Selected Company Unbilled Orders Detail
+  // 2. Fetch Selected Company Unbilled Orders Detail (for batch modal)
   const { data: companyUnbilledData, isLoading: compUnbilledLoading } = useQuery<any>({
-    queryKey: ['billing', 'company-unbilled', selectedCompanyId],
-    queryFn: () => fetchApi(`/billing/companies/${selectedCompanyId}/unbilled`),
-    enabled: !!selectedCompanyId && invoiceModalOpen,
+    queryKey: ['billing', 'company-unbilled', selectedBatchCompanyId],
+    queryFn: () => fetchApi(`/billing/companies/${selectedBatchCompanyId}/unbilled`),
+    enabled: !!selectedBatchCompanyId && batchModalOpen,
   });
 
   // 3. Fetch Invoices List
-  const { data: invoicesData, isLoading: invoicesLoading } = useQuery<any>({
+  const { data: invoicesData, isLoading: invoicesLoading, isError: invoicesError, refetch: refetchInvoices } = useQuery<any>({
     queryKey: ['billing', 'invoices-list'],
     queryFn: () => fetchApi('/billing/invoices?pageSize=50'),
   });
@@ -75,14 +85,15 @@ export default function BillingPage() {
         body: JSON.stringify(payload),
       }),
     onSuccess: (data) => {
-      toast.success(`Invoice ${data?.number || ''} created successfully!`);
-      setInvoiceModalOpen(false);
-      setSelectedCompanyId('');
+      toast.success(`Invoice ${data?.number || ''} issued successfully`);
+      setBatchModalOpen(false);
+      setStepperStep(1);
+      setSelectedBatchCompanyId('');
       queryClient.invalidateQueries({ queryKey: ['billing'] });
       setActiveTab('invoices');
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Failed to create invoice');
+      toast.error(err.message || 'Failed to issue invoice');
     },
   });
 
@@ -90,7 +101,7 @@ export default function BillingPage() {
   const markPaidMutation = useMutation({
     mutationFn: (invoiceId: string) => fetchApi(`/billing/invoices/${invoiceId}/pay`, { method: 'POST' }),
     onSuccess: () => {
-      toast.success('Invoice marked as PAID!');
+      toast.success('Invoice marked as Paid');
       queryClient.invalidateQueries({ queryKey: ['billing'] });
       if (viewInvoiceId) {
         queryClient.invalidateQueries({ queryKey: ['billing', 'invoice-detail', viewInvoiceId] });
@@ -108,427 +119,483 @@ export default function BillingPage() {
     unbilledData?.summary?.totalUnbilledCents ??
     companiesList.reduce((acc, c: any) => acc + (c.netUnbilledCents ?? c.unbilledCents ?? 0), 0);
 
+  const selectedCompanyObj = companiesList.find((c: any) => c.companyId === selectedBatchCompanyId);
+
   return (
     <AppShell requiredPermission="billing:read">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <Receipt className="w-6 h-6 text-emerald-400" />
-              <span>Company Billing & Invoicing</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Review unbilled corporate receivables, issue batch invoices, and track payment status
-            </p>
-          </div>
-
-          <div className="p-3 bg-emerald-950/30 border border-emerald-500/40 rounded-xl text-right">
-            <div className="text-[11px] font-semibold text-emerald-300 uppercase">
-              Total Unbilled Across Companies
+      <div className="space-y-4">
+        {/* Page Header with Single Primary Action: Generate Invoices */}
+        <PageHeader
+          title="Billing & Invoices"
+          subtitle="Corporate accounts receivable, batch invoice runs, and payment tracking"
+          primaryAction={
+            <Button
+              variant="primary"
+              onClick={() => {
+                setBatchModalOpen(true);
+                setStepperStep(1);
+                if (companiesList.length > 0 && !selectedBatchCompanyId) {
+                  setSelectedBatchCompanyId(companiesList[0].companyId);
+                }
+              }}
+            >
+              <Plus className="w-4 h-4 mr-1.5 stroke-[2.5]" />
+              Generate batch invoice
+            </Button>
+          }
+          contextBar={
+            <div className="flex items-center justify-between w-full text-[13px] text-[var(--text-muted)]">
+              <div>
+                Total Unbilled Exposure: <strong className="text-[var(--text)] font-mono font-semibold">{formatCents(totalUnbilled)}</strong> across {companiesList.length} client companies
+              </div>
+              <div className="font-mono text-[12px]">
+                {invoicesList.length} issued invoices
+              </div>
             </div>
-            <div className="text-xl font-bold text-white">
-              {formatCents(totalUnbilled)}
-            </div>
-          </div>
-        </div>
+          }
+        />
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="bg-slate-900 border border-slate-800">
-            <TabsTrigger value="unbilled" className="text-xs">
+        {unbilledError && (
+          <StateBanner
+            variant="error"
+            message="Failed to load billing receivables"
+            onRetry={() => refetchUnbilled()}
+          />
+        )}
+
+        {/* Underline Tabs */}
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)}>
+          <TabsList>
+            <TabsTrigger value="unbilled">
               Unbilled Receivables ({companiesList.length})
             </TabsTrigger>
-            <TabsTrigger value="invoices" className="text-xs">
+            <TabsTrigger value="invoices">
               Invoices History ({invoicesList.length})
             </TabsTrigger>
-            <TabsTrigger value="adjustments" className="text-xs">
+            <TabsTrigger value="adjustments">
               Adjustments Register ({adjustmentsList.length})
             </TabsTrigger>
           </TabsList>
 
-          {/* TAB 1: Unbilled Orders */}
-          <TabsContent value="unbilled" className="space-y-4">
-            <Card className="border-slate-800 bg-slate-900/40 overflow-hidden">
-              <div className="p-4 border-b border-slate-800 flex items-center justify-between text-xs">
-                <div>
-                  <h3 className="font-semibold text-slate-200">
-                    Companies with Confirmed & Delivered Orders Pending Invoice
-                  </h3>
-                  <p className="text-slate-400 text-[11px]">
-                    Confirmed meals are owed by company account. Group them to issue billing records.
-                  </p>
-                </div>
-              </div>
-
+          {/* ─────────────────────────────────────────────────────────────
+              TAB 1: UNBILLED RECEIVABLES
+          ───────────────────────────────────────────────────────────── */}
+          <TabsContent value="unbilled" className="pt-2 space-y-4">
+            <div className="rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[11px]">
-                    <tr>
-                      <th className="py-3 px-4">Company Name</th>
-                      <th className="py-3 px-4">Unbilled Orders</th>
-                      <th className="py-3 px-4">Total Amount</th>
-                      <th className="py-3 px-4 text-right">Action</th>
+                <table className="w-full text-left text-[13px] border-collapse">
+                  <thead className="bg-[var(--bg-raised)] border-b border-[var(--border)] sticky top-0 select-none">
+                    <tr className="h-[36px]">
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                        COMPANY
+                      </th>
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                        UNBILLED ORDERS
+                      </th>
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                        OLDEST DELIVERY
+                      </th>
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] text-right">
+                        TOTAL AMOUNT
+                      </th>
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] text-right">
+                        ACTION
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60">
+                  <tbody className="divide-y divide-[var(--border)]">
                     {unbilledLoading ? (
-                      <tr>
-                        <td colSpan={4} className="py-12 text-center text-slate-500">
-                          Calculating unbilled balances...
-                        </td>
-                      </tr>
+                      <TableSkeletonRows columns={5} rows={5} />
                     ) : companiesList.length > 0 ? (
                       companiesList.map((comp: any) => (
-                        <tr key={comp.companyId} className="hover:bg-slate-850/50">
-                          <td className="py-3 px-4 font-semibold text-white">
+                        <tr key={comp.companyId} className="h-[40px] hover:bg-[var(--bg-raised)] transition-colors">
+                          <td className="px-3 py-2 font-medium text-[var(--text)]">
                             {comp.companyName}
                           </td>
-                          <td className="py-3 px-4 text-slate-300">
+                          <td className="px-3 py-2 text-[var(--text-muted)] font-mono">
                             {comp.orderCount} orders
                           </td>
-                          <td className="py-3 px-4 font-bold text-emerald-400 text-sm">
+                          <td className="px-3 py-2 text-[var(--text-muted)] font-mono text-[12px]">
+                            {comp.oldestDeliveryDate ? formatDate(comp.oldestDeliveryDate) : '--'}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold text-[var(--text)]">
                             {formatCents(comp.netUnbilledCents ?? comp.unbilledCents ?? comp.unbilledTotalCents ?? 0)}
                           </td>
-                          <td className="py-3 px-4 text-right">
+                          <td className="px-3 py-2 text-right">
                             <Button
+                              variant="secondary"
                               size="sm"
                               onClick={() => {
-                                setSelectedCompanyId(comp.companyId);
-                                setInvoiceModalOpen(true);
+                                setSelectedBatchCompanyId(comp.companyId);
+                                setBatchModalOpen(true);
+                                setStepperStep(2);
                               }}
-                              className="text-xs h-8 bg-emerald-600 hover:bg-emerald-500"
+                              className="h-[26px] px-2.5 text-[12px]"
                             >
-                              <PlusCircle className="w-3.5 h-3.5 mr-1" /> Create Invoice
+                              Invoice now
                             </Button>
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={4} className="py-12 text-center text-slate-500">
-                          No unbilled orders found. All confirmed orders are invoiced!
+                        <td colSpan={5}>
+                          <EmptyState message="All confirmed orders are currently invoiced." />
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </Card>
+            </div>
           </TabsContent>
 
-          {/* TAB 2: Invoices List */}
-          <TabsContent value="invoices" className="space-y-4">
-            <Card className="border-slate-800 bg-slate-900/40 overflow-hidden">
+          {/* ─────────────────────────────────────────────────────────────
+              TAB 2: INVOICES HISTORY
+          ───────────────────────────────────────────────────────────── */}
+          <TabsContent value="invoices" className="pt-2 space-y-4">
+            <div className="rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[11px]">
-                    <tr>
-                      <th className="py-3 px-4">Invoice #</th>
-                      <th className="py-3 px-4">Company</th>
-                      <th className="py-3 px-4">Issued Date</th>
-                      <th className="py-3 px-4">Total Amount</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                <table className="w-full text-left text-[13px] border-collapse">
+                  <thead className="bg-[var(--bg-raised)] border-b border-[var(--border)] sticky top-0 select-none">
+                    <tr className="h-[36px]">
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                        INVOICE #
+                      </th>
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                        COMPANY
+                      </th>
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                        ISSUED DATE
+                      </th>
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] text-right">
+                        TOTAL AMOUNT
+                      </th>
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                        STATUS
+                      </th>
+                      <th className="w-[80px] px-3 py-1.5 text-right">
+                        <span className="sr-only">Actions</span>
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60">
+                  <tbody className="divide-y divide-[var(--border)]">
                     {invoicesLoading ? (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-500">
-                          Loading invoices...
-                        </td>
-                      </tr>
+                      <TableSkeletonRows columns={6} rows={6} />
                     ) : invoicesList.length > 0 ? (
                       invoicesList.map((inv: any) => (
-                        <tr key={inv.id} className="hover:bg-slate-850/50">
-                          <td className="py-3 px-4 font-mono font-bold text-white">
+                        <tr
+                          key={inv.id}
+                          onClick={() => setViewInvoiceId(inv.id)}
+                          className="h-[40px] hover:bg-[var(--bg-raised)] transition-colors cursor-pointer"
+                        >
+                          <td className="px-3 py-2 font-mono text-[12px] font-semibold text-[var(--text)]">
                             {inv.number}
                           </td>
-                          <td className="py-3 px-4 text-slate-200">
+                          <td className="px-3 py-2 text-[var(--text)]">
                             {inv.company?.name}
                           </td>
-                          <td className="py-3 px-4 text-slate-400">
+                          <td className="px-3 py-2 text-[var(--text-muted)] font-mono text-[12px]">
                             {formatDate(inv.issuedAt)}
                           </td>
-                          <td className="py-3 px-4 font-bold text-emerald-400 text-sm">
+                          <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold text-[var(--text)]">
                             {formatCents(inv.totalCents)}
                           </td>
-                          <td className="py-3 px-4">
-                            {inv.status === 'PAID' ? (
-                              <Badge variant="default" className="text-[10px]">
-                                PAID
-                              </Badge>
-                            ) : (
-                              <Badge variant="warning" className="text-[10px]">
-                                ISSUED
-                              </Badge>
-                            )}
+                          <td className="px-3 py-2">
+                            <StatusBadge
+                              category={inv.status === 'PAID' ? 'success' : 'info'}
+                              label={inv.status === 'PAID' ? 'Paid' : 'Issued'}
+                              className="h-[20px] text-[11px]"
+                            />
                           </td>
-                          <td className="py-3 px-4 text-right space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setViewInvoiceId(inv.id)}
-                              className="h-7 text-xs px-2.5"
-                            >
-                              <Eye className="w-3.5 h-3.5 mr-1" /> View
-                            </Button>
-                            {inv.status !== 'PAID' && (
-                              <Button
-                                size="sm"
-                                onClick={() => markPaidMutation.mutate(inv.id)}
-                                loading={markPaidMutation.isPending}
-                                className="h-7 text-xs px-2.5 bg-emerald-600 hover:bg-emerald-500"
-                              >
-                                Mark Paid
-                              </Button>
-                            )}
+                          <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="h-[24px] w-[24px] rounded-[4px] hover:bg-[var(--bg-raised)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+                                >
+                                  <MoreHorizontal className="w-3.5 h-3.5" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-32">
+                                <DropdownMenuItem onClick={() => setViewInvoiceId(inv.id)}>
+                                  <Eye className="w-3.5 h-3.5 mr-2" /> Inspect
+                                </DropdownMenuItem>
+                                {inv.status !== 'PAID' && (
+                                  <DropdownMenuItem onClick={() => markPaidMutation.mutate(inv.id)}>
+                                    <Check className="w-3.5 h-3.5 mr-2" /> Mark paid
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-slate-500">
-                          No invoices issued yet.
+                        <td colSpan={6}>
+                          <EmptyState message="No issued invoices found." />
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </Card>
+            </div>
           </TabsContent>
 
-          {/* TAB 3: Adjustments Register */}
-          <TabsContent value="adjustments" className="space-y-4">
-            <Card className="border-slate-800 bg-slate-900/40 overflow-hidden">
-              <div className="p-4 border-b border-slate-800 text-xs">
-                <h3 className="font-semibold text-slate-200">Billing Adjustments & Credits</h3>
-                <p className="text-slate-400 text-[11px]">
-                  Adjustments created when an order is cancelled or modified after having already been invoiced.
-                </p>
-              </div>
-
+          {/* ─────────────────────────────────────────────────────────────
+              TAB 3: ADJUSTMENTS REGISTER
+          ───────────────────────────────────────────────────────────── */}
+          <TabsContent value="adjustments" className="pt-2 space-y-4">
+            <div className="rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[11px]">
-                    <tr>
-                      <th className="py-3 px-4">Company</th>
-                      <th className="py-3 px-4">Reason</th>
-                      <th className="py-3 px-4">Amount</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Note</th>
+                <table className="w-full text-left text-[13px] border-collapse">
+                  <thead className="bg-[var(--bg-raised)] border-b border-[var(--border)] sticky top-0 select-none">
+                    <tr className="h-[36px]">
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                        COMPANY
+                      </th>
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                        REASON
+                      </th>
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] text-right">
+                        AMOUNT
+                      </th>
+                      <th className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)]">
+                        STATUS
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60">
+                  <tbody className="divide-y divide-[var(--border)]">
                     {adjustmentsLoading ? (
-                      <tr>
-                        <td colSpan={5} className="py-12 text-center text-slate-500">
-                          Loading adjustments...
-                        </td>
-                      </tr>
+                      <TableSkeletonRows columns={4} rows={4} />
                     ) : adjustmentsList.length > 0 ? (
                       adjustmentsList.map((adj: any) => (
-                        <tr key={adj.id} className="hover:bg-slate-850/50">
-                          <td className="py-3 px-4 font-semibold text-white">
-                            {adj.company?.name || 'Company'}
+                        <tr key={adj.id} className="h-[40px] hover:bg-[var(--bg-raised)] transition-colors">
+                          <td className="px-3 py-2 font-medium text-[var(--text)]">
+                            {adj.company?.name || 'Client'}
                           </td>
-                          <td className="py-3 px-4 text-slate-300">
+                          <td className="px-3 py-2 text-[var(--text-muted)]">
                             {adj.reason}
                           </td>
-                          <td className="py-3 px-4 font-bold text-rose-400">
+                          <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold text-[var(--text)]">
                             {formatCents(adj.amountCents)}
                           </td>
-                          <td className="py-3 px-4">
-                            <Badge
-                              variant={adj.status === 'INVOICED' ? 'secondary' : 'warning'}
-                              className="text-[10px]"
-                            >
-                              {adj.status}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-slate-400 text-[11px]">
-                            {adj.note || 'Order cancelled after invoice'}
+                          <td className="px-3 py-2">
+                            <StatusBadge
+                              category={adj.status === 'APPLIED' ? 'success' : 'warning'}
+                              label={adj.status === 'APPLIED' ? 'Applied' : 'Open'}
+                              className="h-[20px] text-[11px]"
+                            />
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center text-slate-500">
-                          No adjustments recorded.
+                        <td colSpan={4}>
+                          <EmptyState message="No billing adjustments recorded." />
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </Card>
+            </div>
           </TabsContent>
         </Tabs>
 
-        {/* Generate Invoice Modal */}
-        <Dialog open={invoiceModalOpen} onOpenChange={setInvoiceModalOpen}>
-          <DialogContent className="max-w-lg">
+        {/* 3-Step Stepper Batch Invoice Modal */}
+        <Dialog open={batchModalOpen} onOpenChange={setBatchModalOpen}>
+          <DialogContent className="max-w-xl">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-emerald-400" />
-                <span>Create Company Invoice</span>
-              </DialogTitle>
+              <DialogTitle>Generate Batch Invoice</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4 py-2 text-xs">
-              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                <div className="font-semibold text-slate-200">
-                  {companyUnbilledData?.companyName || companyUnbilledData?.company?.name || 'Company'}
-                </div>
-                <div className="text-slate-400 text-[11px]">
-                  Billing Contact: {companyUnbilledData?.company?.billingEmail || companyUnbilledData?.billingEmail || 'On file'}
-                </div>
+            {/* Stepper Progress Bar */}
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border)] text-[12px]">
+              <div className={cn('flex items-center gap-1.5 font-medium', stepperStep === 1 ? 'text-[var(--brand-text)] font-semibold' : stepperStep > 1 ? 'text-[var(--text)]' : 'text-[var(--text-muted)]')}>
+                <span className="w-5 h-5 rounded-full border border-[var(--border)] bg-[var(--bg-raised)] flex items-center justify-center font-mono text-[11px]">
+                  1
+                </span>
+                <span>Select Company</span>
               </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-slate-300">
-                  <span>Unbilled Confirmed Orders:</span>
-                  <strong>{companyUnbilledData?.orderCount ?? companyUnbilledData?.orders?.length ?? 0} orders</strong>
-                </div>
-                <div className="flex justify-between text-slate-300">
-                  <span>Orders Subtotal:</span>
-                  <span className="font-semibold">
-                    {formatCents(companyUnbilledData?.totalCents || 0)}
-                  </span>
-                </div>
-
-                {((companyUnbilledData?.openAdjustments || companyUnbilledData?.adjustments)?.length > 0) && (
-                  <div className="flex justify-between text-rose-400">
-                    <span>Credit Adjustments Applied:</span>
-                    <span>
-                      {formatCents(
-                        (companyUnbilledData?.openAdjustments || companyUnbilledData?.adjustments).reduce(
-                          (s: number, a: any) => s + a.amountCents,
-                          0
-                        )
-                      )}
-                    </span>
-                  </div>
-                )}
-
-                <div className="pt-2 border-t border-slate-800 flex justify-between text-sm font-bold text-white">
-                  <span>Net Invoice Total:</span>
-                  <span className="text-emerald-400 text-base">
-                    {formatCents(
-                      companyUnbilledData?.netUnbilledCents ??
-                        ((companyUnbilledData?.totalCents || 0) +
-                          ((companyUnbilledData?.openAdjustments || companyUnbilledData?.adjustments)?.reduce(
-                            (s: number, a: any) => s + a.amountCents,
-                            0
-                          ) || 0))
-                    )}
-                  </span>
-                </div>
+              <ChevronRight className="w-3.5 h-3.5 text-[var(--text-faint)]" />
+              <div className={cn('flex items-center gap-1.5 font-medium', stepperStep === 2 ? 'text-[var(--brand-text)] font-semibold' : stepperStep > 2 ? 'text-[var(--text)]' : 'text-[var(--text-muted)]')}>
+                <span className="w-5 h-5 rounded-full border border-[var(--border)] bg-[var(--bg-raised)] flex items-center justify-center font-mono text-[11px]">
+                  2
+                </span>
+                <span>Review Totals</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-[var(--text-faint)]" />
+              <div className={cn('flex items-center gap-1.5 font-medium', stepperStep === 3 ? 'text-[var(--brand-text)] font-semibold' : 'text-[var(--text-muted)]')}>
+                <span className="w-5 h-5 rounded-full border border-[var(--border)] bg-[var(--bg-raised)] flex items-center justify-center font-mono text-[11px]">
+                  3
+                </span>
+                <span>Confirm & Issue</span>
               </div>
             </div>
 
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setInvoiceModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() =>
-                  createInvoiceMutation.mutate({
-                    companyId: selectedCompanyId,
-                  })
-                }
-                loading={createInvoiceMutation.isPending}
-                className="bg-emerald-600 hover:bg-emerald-500 font-bold"
-              >
-                Issue Invoice
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* View Invoice Detail Modal */}
-        <Dialog open={!!viewInvoiceId} onOpenChange={(open) => !open && setViewInvoiceId(null)}>
-          <DialogContent className="max-w-xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
-                <span>Invoice #{singleInvoice?.number}</span>
-                <Badge variant={singleInvoice?.status === 'PAID' ? 'default' : 'warning'}>
-                  {singleInvoice?.status}
-                </Badge>
-              </DialogTitle>
-            </DialogHeader>
-
-            {invoiceLoading ? (
-              <div className="py-12 text-center text-slate-500 text-xs">Loading invoice...</div>
-            ) : singleInvoice ? (
-              <div className="space-y-4 py-2 text-xs">
-                <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-slate-950 border border-slate-800">
-                  <div>
-                    <div className="text-slate-400 text-[11px]">Billed Company</div>
-                    <div className="font-semibold text-slate-200">{singleInvoice.company?.name}</div>
-                    <div className="text-slate-400 text-[11px]">{singleInvoice.company?.billingEmail}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-slate-400 text-[11px]">Issued Date</div>
-                    <div className="font-semibold text-slate-200">
-                      {formatDate(singleInvoice.issuedAt)}
-                    </div>
-                    {singleInvoice.paidAt && (
-                      <div className="text-emerald-400 text-[11px]">
-                        Paid: {new Date(singleInvoice.paidAt).toLocaleDateString()}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-slate-300">Invoice Items</h4>
-                  <div className="divide-y divide-slate-800 border border-slate-800 rounded-lg overflow-hidden max-h-56 overflow-y-auto">
-                    {singleInvoice.items?.map((item: any) => (
-                      <div key={item.id} className="p-2.5 flex items-center justify-between text-xs">
-                        <div>
-                          <div className="font-medium text-slate-200">{item.description}</div>
-                          <div className="text-[10px] text-slate-500 uppercase">{item.kind}</div>
-                        </div>
-                        <div
-                          className={`font-semibold ${
-                            item.amountCents < 0 ? 'text-rose-400' : 'text-slate-200'
-                          }`}
-                        >
-                          {formatCents(item.amountCents)}
-                        </div>
-                      </div>
+            {/* STEP 1: Select Period & Company */}
+            {stepperStep === 1 && (
+              <div className="space-y-4 py-2 text-[13px]">
+                <div>
+                  <label className="text-[12px] font-medium text-[var(--text-muted)] block mb-1.5">
+                    Target Corporate Account:
+                  </label>
+                  <select
+                    value={selectedBatchCompanyId}
+                    onChange={(e) => setSelectedBatchCompanyId(e.target.value)}
+                    className="w-full h-[32px] px-2.5 rounded-[6px] bg-[var(--bg-surface)] border border-[var(--border)] text-[13px] text-[var(--text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--focus-ring)]"
+                  >
+                    <option value="">-- Choose company with unbilled orders --</option>
+                    {companiesList.map((comp: any) => (
+                      <option key={comp.companyId} value={comp.companyId}>
+                        {comp.companyName} ({comp.orderCount} orders · {formatCents(comp.netUnbilledCents ?? comp.unbilledCents)})
+                      </option>
                     ))}
-                  </div>
+                  </select>
                 </div>
 
-                <div className="p-3 rounded-lg bg-emerald-950/20 border border-emerald-500/30 flex items-center justify-between">
-                  <span className="font-semibold text-slate-200">Total Invoice Amount:</span>
-                  <span className="text-emerald-400 font-bold text-base">
-                    {formatCents(singleInvoice.totalCents)}
-                  </span>
+                <div className="p-3 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border)] text-[12px] text-[var(--text-muted)] space-y-1">
+                  <div>• Automatic grouping of all confirmed & delivered orders up to current cut-off</div>
+                  <div>• Open credit/debit adjustments will be reconciled simultaneously</div>
                 </div>
               </div>
-            ) : null}
+            )}
+
+            {/* STEP 2: Review Totals */}
+            {stepperStep === 2 && (
+              <div className="space-y-4 py-2 text-[13px]">
+                <div className="p-3 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border)] space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Company:</span>
+                    <strong className="text-[var(--text)]">{selectedCompanyObj?.companyName || 'Client'}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Unbilled orders to bundle:</span>
+                    <span className="font-mono text-[var(--text)]">{companyUnbilledData?.orderCount ?? selectedCompanyObj?.orderCount ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-[var(--border)] pt-2 text-[15px]">
+                    <span className="font-medium text-[var(--text)]">Net Invoice Total:</span>
+                    <span className="font-mono font-bold text-[var(--text)]">
+                      {formatCents(companyUnbilledData?.totalCents ?? selectedCompanyObj?.netUnbilledCents ?? selectedCompanyObj?.unbilledCents ?? 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: Confirm */}
+            {stepperStep === 3 && (
+              <div className="space-y-3 py-2 text-[13px] text-center">
+                <CheckCircle2 className="w-10 h-10 text-[var(--status-success-fg)] mx-auto mb-1 stroke-[1.5]" />
+                <h3 className="text-[16px] font-semibold text-[var(--text)]">
+                  Ready to Issue Invoice
+                </h3>
+                <p className="text-[13px] text-[var(--text-muted)] max-w-sm mx-auto">
+                  Issuing will finalize billing records for {selectedCompanyObj?.companyName} and assign an official invoice number.
+                </p>
+              </div>
+            )}
 
             <DialogFooter>
-              <Button variant="ghost" onClick={() => setViewInvoiceId(null)}>
-                Close
-              </Button>
-              {singleInvoice && singleInvoice.status !== 'PAID' && (
+              {stepperStep > 1 && (
                 <Button
-                  onClick={() => markPaidMutation.mutate(singleInvoice.id)}
-                  loading={markPaidMutation.isPending}
-                  className="bg-emerald-600 hover:bg-emerald-500 font-bold"
+                  variant="ghost"
+                  onClick={() => setStepperStep((prev) => (prev - 1) as any)}
                 >
-                  Mark as Paid
+                  Back
+                </Button>
+              )}
+              {stepperStep < 3 ? (
+                <Button
+                  variant="primary"
+                  disabled={!selectedBatchCompanyId}
+                  onClick={() => setStepperStep((prev) => (prev + 1) as any)}
+                >
+                  Proceed to Step {stepperStep + 1}
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  loading={createInvoiceMutation.isPending}
+                  onClick={() =>
+                    createInvoiceMutation.mutate({
+                      companyId: selectedBatchCompanyId,
+                    })
+                  }
+                >
+                  Confirm & Issue Invoice
                 </Button>
               )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Invoice Detail Drawer */}
+        <Drawer
+          open={!!viewInvoiceId}
+          onClose={() => setViewInvoiceId(null)}
+          title={`Invoice ${singleInvoice?.number || ''}`}
+          subtitle={`${singleInvoice?.company?.name || ''} · Issued ${formatDate(singleInvoice?.issuedAt)}`}
+          footer={
+            singleInvoice && singleInvoice.status !== 'PAID' ? (
+              <Button
+                variant="primary"
+                onClick={() => markPaidMutation.mutate(singleInvoice.id)}
+                loading={markPaidMutation.isPending}
+              >
+                Mark Invoice Paid
+              </Button>
+            ) : null
+          }
+        >
+          {singleInvoice && (
+            <div className="space-y-4 text-[13px]">
+              <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+                <span className="text-[var(--text-muted)]">Payment Status:</span>
+                <StatusBadge
+                  category={singleInvoice.status === 'PAID' ? 'success' : 'info'}
+                  label={singleInvoice.status === 'PAID' ? 'Paid' : 'Issued'}
+                />
+              </div>
+
+              <div className="p-3 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border)] space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Subtotal:</span>
+                  <span className="font-mono text-[var(--text)]">{formatCents(singleInvoice.subtotalCents)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Tax / Adjustments:</span>
+                  <span className="font-mono text-[var(--text)]">{formatCents(singleInvoice.taxCents || 0)}</span>
+                </div>
+                <div className="flex justify-between border-t border-[var(--border)] pt-2 text-[15px]">
+                  <span className="font-medium text-[var(--text)]">Total Invoiced:</span>
+                  <span className="font-mono font-bold text-[var(--text)]">{formatCents(singleInvoice.totalCents)}</span>
+                </div>
+              </div>
+
+              {singleInvoice.orders?.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] block">
+                    Bundled Orders ({singleInvoice.orders.length})
+                  </span>
+                  <div className="rounded-[6px] border border-[var(--border)] divide-y divide-[var(--border)] max-h-48 overflow-y-auto">
+                    {singleInvoice.orders.map((o: any) => (
+                      <div key={o.id} className="p-2 flex items-center justify-between text-[12px]">
+                        <span className="font-mono font-medium text-[var(--text)]">#{o.number}</span>
+                        <span className="text-[var(--text-muted)]">{formatDate(o.deliveryDate)}</span>
+                        <span className="font-mono text-[var(--text)]">{formatCents(o.totalCents)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Drawer>
       </div>
     </AppShell>
   );

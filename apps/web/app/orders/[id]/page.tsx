@@ -7,28 +7,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
 import { formatCents, formatDate, formatMinutesToTime, minutesToTimeString, timeStringToMinutes } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Chip } from '@/components/ui/chip';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
-  ShoppingBag,
   ArrowLeft,
-  Calendar,
-  Clock,
-  MapPin,
-  Package,
-  Building,
-  User,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  ShieldAlert,
   Edit,
-  Truck,
-  ChefHat,
   Ban,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 
 export default function OrderDetailPage() {
@@ -75,12 +65,12 @@ export default function OrderDetailPage() {
         body: JSON.stringify({ reason }),
       }),
     onSuccess: () => {
-      toast.success('Order cancelled successfully.');
+      toast.success('Order cancelled successfully');
       setCancelModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ['order', id] });
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Failed to cancel order.');
+      toast.error(err.message || 'Failed to cancel order');
     },
   });
 
@@ -91,23 +81,23 @@ export default function OrderDetailPage() {
         body: JSON.stringify({ reason }),
       }),
     onSuccess: () => {
-      toast.success('Order rejected.');
+      toast.success('Order rejected');
       setRejectModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ['order', id] });
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Failed to reject order.');
+      toast.error(err.message || 'Failed to reject order');
     },
   });
 
   const placeMutation = useMutation({
     mutationFn: () => fetchApi(`/orders/${id}/place`, { method: 'POST', body: JSON.stringify({}) }),
     onSuccess: () => {
-      toast.success('Order successfully placed!');
+      toast.success('Order successfully placed');
       queryClient.invalidateQueries({ queryKey: ['order', id] });
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Failed to place order.');
+      toast.error(err.message || 'Failed to place order');
     },
   });
 
@@ -118,20 +108,20 @@ export default function OrderDetailPage() {
         body: JSON.stringify(payload),
       }),
     onSuccess: () => {
-      toast.success('Admin override applied.');
+      toast.success('Admin override applied');
       setOverrideModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ['order', id] });
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Failed to apply admin override.');
+      toast.error(err.message || 'Failed to apply admin override');
     },
   });
 
   if (isLoading) {
     return (
       <AppShell requiredPermission="orders:read">
-        <div className="py-24 text-center text-slate-500 text-sm">
-          Loading order details...
+        <div className="py-24 text-center text-muted text-xs">
+          Loading order details…
         </div>
       </AppShell>
     );
@@ -140,32 +130,13 @@ export default function OrderDetailPage() {
   if (!order) {
     return (
       <AppShell requiredPermission="orders:read">
-        <div className="py-24 text-center text-slate-400 space-y-3">
+        <div className="py-24 text-center text-muted space-y-3">
           <p>Order not found.</p>
-          <Button onClick={() => router.push('/orders')}>Return to Orders</Button>
+          <Button onClick={() => router.push('/orders')}>Return to orders</Button>
         </div>
       </AppShell>
     );
   }
-
-  const getStatusBadge = (statusName: string) => {
-    switch (statusName) {
-      case 'DRAFT':
-        return <Badge variant="secondary">Draft</Badge>;
-      case 'PLACED':
-        return <Badge variant="warning">Placed</Badge>;
-      case 'CONFIRMED':
-        return <Badge variant="default">Confirmed</Badge>;
-      case 'DELIVERED':
-        return <Badge variant="info">Delivered</Badge>;
-      case 'CANCELLED':
-        return <Badge variant="secondary" className="line-through">Cancelled</Badge>;
-      case 'REJECTED':
-        return <Badge variant="destructive">Rejected</Badge>;
-      default:
-        return <Badge variant="outline">{statusName}</Badge>;
-    }
-  };
 
   // Timeline events
   const timeline = [
@@ -180,12 +151,12 @@ export default function OrderDetailPage() {
 
   return (
     <AppShell requiredPermission="orders:read">
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Header Navigation */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
+        <div className="flex items-center justify-between pb-2 border-b border-border">
           <div className="flex items-center gap-3">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => router.push('/orders')}
               className="h-8 w-8 p-0"
@@ -194,13 +165,13 @@ export default function OrderDetailPage() {
             </Button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-white font-mono">
+                <h1 className="text-xl font-semibold text-text font-mono tabular-nums">
                   Order #{order.number}
                 </h1>
-                {getStatusBadge(order.status)}
-                {locked && <Badge variant="secondary">Locked by Cut-off</Badge>}
+                <StatusBadge status={order.status} />
+                {locked && <Chip>Locked by Cut-off</Chip>}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-muted mt-0.5 tabular-nums">
                 Delivery for {formatDate(order.deliveryDate)} at{' '}
                 {formatMinutesToTime(order.deliveryTimeMin)}
               </p>
@@ -208,43 +179,38 @@ export default function OrderDetailPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
             {order.status === 'DRAFT' && (
               <Button
                 size="sm"
                 onClick={() => placeMutation.mutate()}
                 loading={placeMutation.isPending}
-                className="text-xs"
               >
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Place Order
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Place order
               </Button>
             )}
 
-            {/* Cancel (before cut-off or admin anytime) */}
             {(order.status === 'DRAFT' || order.status === 'PLACED' || (order.status === 'CONFIRMED' && can('*'))) && (
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => setCancelModalOpen(true)}
-                className="text-xs text-rose-400 border-rose-900/50 hover:bg-rose-950/40"
+                className="text-danger hover:text-danger"
               >
-                <Ban className="w-3.5 h-3.5 mr-1" /> Cancel Order
+                <Ban className="w-3.5 h-3.5 mr-1.5" /> Cancel order
               </Button>
             )}
 
-            {/* Reject (Admin only, non-billable refusal) */}
             {can('orders:override') && ['PLACED', 'CONFIRMED'].includes(order.status) && (
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => setRejectModalOpen(true)}
-                className="text-xs"
               >
-                <XCircle className="w-3.5 h-3.5 mr-1" /> Reject
+                <XCircle className="w-3.5 h-3.5 mr-1.5" /> Reject
               </Button>
             )}
 
-            {/* Admin Override (after confirmation) */}
             {can('orders:override') && ['CONFIRMED', 'PLACED'].includes(order.status) && (
               <Button
                 variant="secondary"
@@ -255,9 +221,8 @@ export default function OrderDetailPage() {
                   setOverridePackaging(order.packaging);
                   setOverrideModalOpen(true);
                 }}
-                className="text-xs"
               >
-                <Edit className="w-3.5 h-3.5 mr-1" /> Admin Override
+                <Edit className="w-3.5 h-3.5 mr-1.5" /> Admin override
               </Button>
             )}
           </div>
@@ -265,10 +230,10 @@ export default function OrderDetailPage() {
 
         {/* Cancellation Notice if cancelled */}
         {order.status === 'CANCELLED' && (
-          <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-1">
-            <span className="font-semibold text-rose-400">Order Cancelled:</span>{' '}
-            <span className="text-slate-300">{order.cancelReason || 'No reason specified'}</span>
-            <div className="text-[11px] text-slate-500">
+          <div className="p-3.5 rounded-lg bg-raised border border-border text-xs space-y-1">
+            <span className="font-semibold text-danger">Order cancelled:</span>{' '}
+            <span className="text-text">{order.cancelReason || 'No reason specified'}</span>
+            <div className="text-[11px] text-muted tabular-nums">
               Cancelled at {new Date(order.cancelledAt || order.updatedAt).toLocaleString()}
             </div>
           </div>
@@ -276,67 +241,65 @@ export default function OrderDetailPage() {
 
         {/* Rejection Notice if rejected */}
         {order.status === 'REJECTED' && (
-          <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-xs space-y-1">
-            <span className="font-semibold text-rose-300">Terminal Rejection by Admin:</span>{' '}
-            <span className="text-slate-200">{order.rejectReason}</span>
+          <div className="p-3.5 rounded-lg bg-raised border border-border text-xs space-y-1">
+            <span className="font-semibold text-danger">Terminal rejection by admin:</span>{' '}
+            <span className="text-text">{order.rejectReason}</span>
           </div>
         )}
 
         {/* Main Grid: Details + Timeline */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left 2 Cols: Order Items & Breakdown */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="border-slate-800 bg-slate-900/40 overflow-hidden">
-              <CardHeader className="p-5 pb-3 border-b border-slate-800">
-                <CardTitle className="text-base flex items-center justify-between">
-                  <span>Ordered Items</span>
-                  <span className="text-emerald-400 font-bold text-lg">
-                    Total: {formatCents(order.totalCents)}
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 divide-y divide-slate-800/80">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="bg-surface border border-border rounded-lg overflow-hidden">
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <span className="font-semibold text-sm text-text">Ordered items</span>
+                <span className="font-semibold text-sm tabular-nums text-text">
+                  Total: {formatCents(order.totalCents)}
+                </span>
+              </div>
+              <div className="divide-y divide-border">
                 {order.lines?.map((line: any) => (
-                  <div key={line.id} className="p-5 space-y-3 text-xs">
+                  <div key={line.id} className="p-4 space-y-2 text-xs">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-semibold text-sm text-white">{line.dishName}</div>
-                        <div className="text-[11px] text-slate-400 font-mono">
-                          SKU: {line.dishSku} • Tier: {line.tierName}
+                        <div className="font-medium text-sm text-text">{line.dishName}</div>
+                        <div className="text-[11px] text-muted font-mono tabular-nums">
+                          SKU: {line.dishSku} · Tier: {line.tierName}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-bold text-sm text-emerald-400">
+                        <div className="font-semibold text-sm text-text tabular-nums">
                           {formatCents(line.lineTotalCents)}
                         </div>
-                        <div className="text-[11px] text-slate-400">
+                        <div className="text-[11px] text-muted tabular-nums">
                           {line.quantity} units @ base {formatCents(line.dishPriceCents)}
                         </div>
                       </div>
                     </div>
 
                     {/* Combinations breakdown */}
-                    <div className="space-y-1.5 pl-3 border-l-2 border-emerald-500/40">
+                    <div className="space-y-1.5 pl-3 border-l-2 border-brand-solid">
                       {line.combinations?.map((combo: any) => (
                         <div
                           key={combo.id}
-                          className="p-2 rounded bg-slate-950/60 border border-slate-800/60 flex items-center justify-between"
+                          className="p-2 rounded bg-app border border-border flex items-center justify-between"
                         >
                           <div>
-                            <span className="font-medium text-slate-200">
+                            <span className="font-medium text-text tabular-nums">
                               {combo.quantity}x {combo.label || 'Standard'}
                             </span>
-                            <div className="text-[11px] text-slate-400">
+                            <div className="text-[11px] text-muted">
                               {combo.options?.map((o: any, idx: number) => (
                                 <span key={idx}>
-                                  {idx > 0 && ' • '}
-                                  {o.groupName}: <strong className="text-slate-300">{o.optionName}</strong>
+                                  {idx > 0 && ' · '}
+                                  {o.groupName}: <strong className="text-text font-medium">{o.optionName}</strong>
                                   {o.portionName ? ` (${o.portionName})` : ''}
                                 </span>
                               ))}
                             </div>
                           </div>
-                          <span className="font-semibold text-slate-300">
+                          <span className="font-medium font-mono text-text tabular-nums">
                             {formatCents(combo.totalCents)}
                           </span>
                         </div>
@@ -345,132 +308,112 @@ export default function OrderDetailPage() {
                   </div>
                 ))}
 
-                {/* If draft with raw payload */}
                 {(!order.lines || order.lines.length === 0) && order.draftPayload?.lines && (
-                  <div className="p-5 text-xs text-slate-400 space-y-2">
-                    <div className="font-semibold text-amber-400">Draft Order Payload (Not yet validated/snapshotted):</div>
-                    <pre className="p-3 bg-slate-950 rounded-lg overflow-x-auto text-[11px]">
+                  <div className="p-4 text-xs text-muted space-y-2">
+                    <div className="font-medium text-text">Draft order payload:</div>
+                    <pre className="p-3 bg-app rounded-md border border-border overflow-x-auto text-[11px]">
                       {JSON.stringify(order.draftPayload, null, 2)}
                     </pre>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Delivery & Logistics Details */}
-            <Card className="border-slate-800 bg-slate-900/40">
-              <CardHeader className="p-5 pb-3">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-emerald-400" />
-                  Delivery & Logistics Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-5 pt-0 space-y-3 text-xs">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
-                    <div className="text-slate-400 text-[11px] uppercase font-semibold">Address</div>
-                    <div className="font-medium text-slate-200 mt-1">
-                      {order.addressSnapshot?.label || 'Corporate Office'}
-                    </div>
-                    <div className="text-slate-400 text-[11px]">
-                      {order.addressSnapshot?.line1}, {order.addressSnapshot?.city}
-                    </div>
+            <div className="bg-surface border border-border rounded-lg p-4 space-y-3 text-xs">
+              <div className="font-semibold text-sm text-text">
+                Delivery & logistics details
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-md bg-app border border-border">
+                  <div className="text-muted text-[11px] uppercase tracking-wider font-semibold">Address</div>
+                  <div className="font-medium text-text mt-1">
+                    {order.addressSnapshot?.label || 'Corporate Office'}
                   </div>
-
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
-                    <div className="text-slate-400 text-[11px] uppercase font-semibold">Packaging & Timings</div>
-                    <div className="font-medium text-slate-200 mt-1">
-                      Packaging: <span className="text-emerald-400">{order.packaging}</span>
-                    </div>
-                    <div className="text-slate-400 text-[11px] mt-0.5">
-                      Planned Dispatch: {order.plannedDispatchReadyAt ? new Date(order.plannedDispatchReadyAt).toLocaleTimeString() : 'Pending'}
-                    </div>
+                  <div className="text-muted text-[11px]">
+                    {order.addressSnapshot?.line1}, {order.addressSnapshot?.city}
                   </div>
                 </div>
 
-                {order.notes && (
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-[11px] text-slate-300">
-                    <span className="font-semibold text-slate-400">Notes:</span> {order.notes}
+                <div className="p-3 rounded-md bg-app border border-border">
+                  <div className="text-muted text-[11px] uppercase tracking-wider font-semibold">Packaging & timings</div>
+                  <div className="font-medium text-text mt-1">
+                    Packaging: <Chip>{order.packaging}</Chip>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  <div className="text-muted text-[11px] mt-1 tabular-nums">
+                    Planned dispatch: {order.plannedDispatchReadyAt ? new Date(order.plannedDispatchReadyAt).toLocaleTimeString() : 'Pending'}
+                  </div>
+                </div>
+              </div>
+
+              {order.notes && (
+                <div className="p-3 rounded-md bg-app border border-border text-[11px] text-muted">
+                  <span className="font-medium text-text">Notes:</span> {order.notes}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right Column: Customer Info & Timeline */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Customer Info Card */}
-            <Card className="border-slate-800 bg-slate-900/40">
-              <CardHeader className="p-5 pb-3">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <User className="w-4 h-4 text-emerald-400" />
-                  Employee & Company
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-5 pt-0 space-y-3 text-xs">
-                <div>
-                  <div className="text-[11px] text-slate-400">Employee</div>
-                  <div className="font-semibold text-slate-200">{order.employee?.name}</div>
-                  <div className="text-[11px] text-slate-400">{order.employee?.email}</div>
-                </div>
+            <div className="bg-surface border border-border rounded-lg p-4 space-y-3 text-xs">
+              <div className="font-semibold text-sm text-text">
+                Employee & company
+              </div>
+              <div>
+                <div className="text-[11px] text-muted uppercase tracking-wider">Employee</div>
+                <div className="font-medium text-text">{order.employee?.name}</div>
+                <div className="text-[11px] text-muted font-mono">{order.employee?.email}</div>
+              </div>
 
-                <div className="pt-2 border-t border-slate-800">
-                  <div className="text-[11px] text-slate-400">Billed Company</div>
-                  <div className="font-semibold text-slate-200">{order.company?.name}</div>
-                </div>
+              <div className="pt-2 border-t border-border">
+                <div className="text-[11px] text-muted uppercase tracking-wider">Billed company</div>
+                <div className="font-medium text-text">{order.company?.name}</div>
+              </div>
 
-                <div className="pt-2 border-t border-slate-800">
-                  <div className="text-[11px] text-slate-400">Invoice Status</div>
-                  <div className="mt-1">
-                    {order.invoiceId ? (
-                      <Badge variant="secondary" className="text-[10px]">
-                        Invoiced #{order.invoice?.number || order.invoiceId.slice(0, 8)}
-                      </Badge>
-                    ) : ['CONFIRMED', 'DELIVERED'].includes(order.status) ? (
-                      <Badge variant="warning" className="text-[10px]">
-                        Unbilled (Ready to Invoice)
-                      </Badge>
-                    ) : (
-                      <span className="text-slate-500 text-[11px]">N/A</span>
-                    )}
-                  </div>
+              <div className="pt-2 border-t border-border">
+                <div className="text-[11px] text-muted uppercase tracking-wider">Invoice status</div>
+                <div className="mt-1">
+                  {order.invoiceId ? (
+                    <Chip>Invoiced #{order.invoice?.number || order.invoiceId.slice(0, 8)}</Chip>
+                  ) : ['CONFIRMED', 'DELIVERED'].includes(order.status) ? (
+                    <StatusBadge status="Due soon" label="Unbilled" />
+                  ) : (
+                    <span className="text-muted text-[11px]">N/A</span>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Lifecycle Timeline Card */}
-            <Card className="border-slate-800 bg-slate-900/40">
-              <CardHeader className="p-5 pb-3">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-sky-400" />
-                  Order Progress Timeline
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-5 pt-0 space-y-4">
-                <div className="relative pl-6 border-l border-slate-800 space-y-4 text-xs">
-                  {timeline.map((evt, idx) => (
-                    <div key={idx} className="relative">
-                      <div
-                        className={`absolute -left-[31px] top-0.5 w-3 h-3 rounded-full border-2 ${
-                          evt.done
-                            ? 'bg-emerald-500 border-slate-950'
-                            : 'bg-slate-800 border-slate-700'
-                        }`}
-                      />
-                      <div className={`font-medium ${evt.done ? 'text-white' : 'text-slate-500'}`}>
-                        {evt.label}
-                      </div>
-                      {evt.time && (
-                        <div className="text-[11px] text-slate-400">
-                          {new Date(evt.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} •{' '}
-                          {new Date(evt.time).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                        </div>
-                      )}
+            <div className="bg-surface border border-border rounded-lg p-4 space-y-4 text-xs">
+              <div className="font-semibold text-sm text-text">
+                Order progress timeline
+              </div>
+              <div className="relative pl-5 border-l border-border space-y-4">
+                {timeline.map((evt, idx) => (
+                  <div key={idx} className="relative">
+                    <div
+                      className={`absolute -left-[24px] top-1 w-2.5 h-2.5 rounded-full ${
+                        evt.done
+                          ? 'bg-brand-solid'
+                          : 'bg-border'
+                      }`}
+                    />
+                    <div className={`font-medium ${evt.done ? 'text-text' : 'text-muted'}`}>
+                      {evt.label}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    {evt.time && (
+                      <div className="text-[11px] text-muted font-mono tabular-nums">
+                        {new Date(evt.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ·{' '}
+                        {new Date(evt.time).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -478,36 +421,34 @@ export default function OrderDetailPage() {
         <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Cancel Order #{order.number}</DialogTitle>
+              <DialogTitle>Cancel order #{order.number}</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 text-xs py-2">
-              <p className="text-slate-300">
+              <p className="text-muted">
                 Are you sure you want to cancel this order? If this order has already been invoiced,
                 an automatic credit adjustment will be recorded for the company.
               </p>
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Cancellation Reason
+                <label className="text-xs font-medium text-text block mb-1">
+                  Cancellation reason
                 </label>
-                <input
-                  type="text"
+                <Input
                   placeholder="e.g. Employee requested cancellation"
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
                 />
               </div>
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setCancelModalOpen(false)}>
-                Back
+                Return
               </Button>
               <Button
                 variant="destructive"
                 onClick={() => cancelMutation.mutate(cancelReason)}
                 loading={cancelMutation.isPending}
               >
-                Confirm Cancel
+                Confirm cancellation
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -517,29 +458,27 @@ export default function OrderDetailPage() {
         <Dialog open={rejectModalOpen} onOpenChange={setRejectModalOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Reject Order #{order.number}</DialogTitle>
+              <DialogTitle>Reject order #{order.number}</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 text-xs py-2">
-              <p className="text-rose-300">
-                Admin Rejection is a terminal state that refuses the order and makes it permanently non-billable.
+              <p className="text-muted">
+                Terminal admin refusal. The order will be marked REJECTED and excluded from billing and kitchen prep.
               </p>
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Rejection Reason *
+                <label className="text-xs font-medium text-text block mb-1">
+                  Rejection reason *
                 </label>
-                <input
-                  type="text"
+                <Input
                   required
-                  placeholder="e.g. Kitchen capacity exceeded for this timeslot"
+                  placeholder="e.g. Operational capacity exceeded"
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
                 />
               </div>
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setRejectModalOpen(false)}>
-                Back
+                Cancel
               </Button>
               <Button
                 variant="destructive"
@@ -547,7 +486,7 @@ export default function OrderDetailPage() {
                 onClick={() => rejectMutation.mutate(rejectReason)}
                 loading={rejectMutation.isPending}
               >
-                Confirm Rejection
+                Confirm rejection
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -557,51 +496,53 @@ export default function OrderDetailPage() {
         <Dialog open={overrideModalOpen} onOpenChange={setOverrideModalOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Admin Override: Post-Cutoff Modifications</DialogTitle>
+              <DialogTitle>Admin override — Order #{order.number}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 text-xs py-2">
+            <div className="space-y-3 text-xs py-2">
+              <p className="text-muted">
+                Admin exception: modify delivery logistics for this order after cut-off has passed.
+              </p>
+
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Delivery Time
+                <label className="text-xs font-medium text-text block mb-1">
+                  Delivery time
                 </label>
-                <input
+                <Input
                   type="time"
-                  step={300}
                   value={minutesToTimeString(overrideTime)}
                   onChange={(e) => setOverrideTime(timeStringToMinutes(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Delivery Address
+                <label className="text-xs font-medium text-text block mb-1">
+                  Delivery address
                 </label>
                 <select
                   value={overrideAddressId}
                   onChange={(e) => setOverrideAddressId(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                  className="w-full h-8 px-2.5 bg-app border border-border rounded-md text-xs text-text focus:outline-none focus:ring-1 focus:ring-brand-solid"
                 >
-                  {companyData?.addresses?.map((addr: any) => (
-                    <option key={addr.id} value={addr.id}>
-                      {addr.label} — {addr.line1}
+                  {companyData?.addresses?.map((a: any) => (
+                    <option key={a.id} value={a.id}>
+                      {a.label} — {a.line1}, {a.city}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Packaging
+                <label className="text-xs font-medium text-text block mb-1">
+                  Packaging format
                 </label>
                 <select
                   value={overridePackaging}
                   onChange={(e) => setOverridePackaging(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                  className="w-full h-8 px-2.5 bg-app border border-border rounded-md text-xs text-text focus:outline-none focus:ring-1 focus:ring-brand-solid"
                 >
                   <option value="STANDARD">Standard</option>
-                  <option value="INSULATED">Insulated</option>
-                  <option value="ECO">Eco-friendly</option>
+                  <option value="INDIVIDUAL">Individual boxes</option>
+                  <option value="ECO">Eco-friendly containers</option>
                 </select>
               </div>
             </div>
@@ -619,7 +560,7 @@ export default function OrderDetailPage() {
                 }
                 loading={overrideMutation.isPending}
               >
-                Save Override
+                Save override
               </Button>
             </DialogFooter>
           </DialogContent>

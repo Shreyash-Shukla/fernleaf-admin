@@ -4,51 +4,189 @@
 
 @layer base {
   :root,
-  .dark {
-    --background: 222.2 47.4% 6.5%;
-    --foreground: 210 40% 98%;
+  :root[data-theme="dark"],
+  [data-theme="dark"] {
+    /* DARK TOKENS */
+    --bg-app: #0B0E0D;
+    --bg-surface: #111513;
+    --bg-raised: #171C1A;
+    --border: #232A27;
+    --border-strong: #323B37;
+    --text: #E7ECE9;
+    --text-muted: #98A29D;
+    --text-faint: #66706B;
 
-    --card: 222.2 47.4% 9.5%;
-    --card-foreground: 210 40% 98%;
+    --brand-solid: #2DD4BF;
+    --brand-solid-text: #042F2E;
+    --brand-hover: #5EEAD4;
+    --brand-text: #5EEAD4;
+    --brand-soft: rgba(45, 212, 191, 0.10);
+    --focus-ring: #5EEAD4;
 
-    --popover: 222.2 47.4% 9.5%;
-    --popover-foreground: 210 40% 98%;
+    /* STATUS COLORS - DARK */
+    --status-success-fg: #5BD68A;
+    --status-success-bg: rgba(91, 214, 138, 0.12);
+    --status-success-border: rgba(91, 214, 138, 0.28);
 
-    --primary: 160 84% 39%;
-    --primary-foreground: 210 40% 98%;
+    --status-info-fg: #7DB2F7;
+    --status-info-bg: rgba(125, 178, 247, 0.12);
+    --status-info-border: rgba(125, 178, 247, 0.28);
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --status-warning-fg: #F0B24B;
+    --status-warning-bg: rgba(240, 178, 75, 0.12);
+    --status-warning-border: rgba(240, 178, 75, 0.28);
 
-    --muted: 217.2 32.6% 15%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --status-danger-fg: #FF7A6E;
+    --status-danger-bg: rgba(255, 122, 110, 0.12);
+    --status-danger-border: rgba(255, 122, 110, 0.28);
 
-    --accent: 217.2 32.6% 20%;
-    --accent-foreground: 210 40% 98%;
+    --status-neutral-fg: #A9B3AE;
+    --status-neutral-bg: rgba(169, 179, 174, 0.12);
+    --status-neutral-border: rgba(169, 179, 174, 0.28);
 
-    --destructive: 346 87% 55%;
-    --destructive-foreground: 210 40% 98%;
+    --shadow-elevation: 0 8px 24px rgba(0, 0, 0, 0.35);
 
-    --border: 217.2 32.6% 18.5%;
-    --input: 217.2 32.6% 18.5%;
-    --ring: 160 84% 39%;
+    color-scheme: dark;
+  }
 
-    --radius: 0.625rem;
+  :root[data-theme="light"],
+  [data-theme="light"] {
+    /* LIGHT TOKENS */
+    --bg-app: #F5F6F5;
+    --bg-surface: #FFFFFF;
+    --bg-raised: #EEF1EF;
+    --border: #E1E5E2;
+    --border-strong: #C9D0CC;
+    --text: #181C1A;
+    --text-muted: #59635E;
+    --text-faint: #86908B;
+
+    --brand-solid: #0F766E;
+    --brand-solid-text: #FFFFFF;
+    --brand-hover: #115E59;
+    --brand-text: #0F766E;
+    --brand-soft: #E6F4F1;
+    --focus-ring: #0F766E;
+
+    /* STATUS COLORS - LIGHT */
+    --status-success-fg: #166A34;
+    --status-success-bg: #E4F3E8;
+    --status-success-border: #B9DCC3;
+
+    --status-info-fg: #1C5DB5;
+    --status-info-bg: #E6EFFB;
+    --status-info-border: #B7D0F1;
+
+    --status-warning-fg: #8F5300;
+    --status-warning-bg: #FFF1D6;
+    --status-warning-border: #EFD49B;
+
+    --status-danger-fg: #B3261E;
+    --status-danger-bg: #FDEAE8;
+    --status-danger-border: #F2BDB8;
+
+    --status-neutral-fg: #4A534E;
+    --status-neutral-bg: #ECEFED;
+    --status-neutral-border: #D3D9D5;
+
+    --shadow-elevation: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+    color-scheme: light;
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--border);
+    font-variant-numeric: tabular-nums;
   }
+
+  html,
   body {
-    @apply bg-background text-foreground antialiased selection:bg-emerald-500/20 selection:text-emerald-300;
-    font-feature-settings: "rlig" 1, "calt" 1;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--bg-app);
+    color: var(--text);
+    font-family: var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    min-width: 1280px;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Focus rings */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
   }
 }
 
-/* Custom sleek scrollbars */
+/* Typography Utility Classes adhering to exact type scale */
+.type-page-title {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+
+.type-section-title {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.type-body {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+
+.type-table-cell {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 400;
+}
+
+.type-supporting {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+}
+
+.type-label-header {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.type-kpi-value {
+  font-size: 28px;
+  line-height: 32px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.type-kds-count {
+  font-size: 32px;
+  line-height: 36px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbar utilities */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Clean calm scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -57,9 +195,25 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
-  border-radius: 9999px;
+  background: var(--border-strong);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.4);
+  background: var(--text-faint);
+}
+
+/* Late Pulse Animation */
+@keyframes latePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+}
+
+.animate-late-pulse {
+  animation: latePulse 1.6s ease-in-out infinite;
 }

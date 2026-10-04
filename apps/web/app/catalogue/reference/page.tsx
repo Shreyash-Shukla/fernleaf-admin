@@ -2,23 +2,17 @@
 
 import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageHeader } from '@/components/shell/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import {
-  Sliders,
-  Plus,
-  AlertTriangle,
-  Tag,
-  ChefHat,
-  Maximize2,
-  CheckCircle2,
-} from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 export default function ReferenceDataPage() {
   const queryClient = useQueryClient();
@@ -79,7 +73,7 @@ export default function ReferenceDataPage() {
           throw new Error('Unknown type');
       }
     },
-    onSuccess: (_, vars) => {
+    onSuccess: () => {
       toast.success('Reference entry added successfully');
       setModalOpen(false);
       setName('');
@@ -112,272 +106,187 @@ export default function ReferenceDataPage() {
     onError: (err: any) => toast.error(err.message || 'Failed to update status'),
   });
 
-  return (
-    <AppShell requiredPermission="catalogue:read">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
+  function renderList(
+    items: any[] | undefined,
+    loading: boolean,
+    type: 'station' | 'allergen' | 'tag' | 'portion',
+    title: string,
+    description: string,
+    hasSortOrder = false
+  ) {
+    return (
+      <div className="bg-surface border border-border rounded-lg overflow-hidden">
+        <div className="p-4 border-b border-border flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <Sliders className="w-6 h-6 text-emerald-400" />
-              <span>Reference Data</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Configure platform kitchen stations, allergen definitions, dietary labels, and portion sizes
-            </p>
+            <div className="font-semibold text-sm text-text">{title}</div>
+            <div className="text-xs text-muted mt-0.5">{description}</div>
           </div>
+          <Button
+            size="sm"
+            onClick={() => {
+              setModalType(type);
+              setName('');
+              setSortOrder(items?.length ? items.length + 1 : 1);
+              setModalOpen(true);
+            }}
+          >
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Add entry
+          </Button>
         </div>
 
-        {/* Tabs */}
+        {loading ? (
+          <div className="p-4 space-y-2">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : !items || items.length === 0 ? (
+          <div className="p-8 text-center text-muted text-xs">No entries configured.</div>
+        ) : (
+          <div className="divide-y divide-border">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="h-11 px-4 flex items-center justify-between text-xs hover:bg-raised transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="font-medium text-text">{item.name}</span>
+                  {hasSortOrder && item.sortOrder !== undefined && (
+                    <span className="font-mono text-faint text-[11px] tabular-nums">
+                      Order: #{item.sortOrder}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <StatusBadge
+                    status={item.active !== false ? 'Ready' : 'Cancelled'}
+                    label={item.active !== false ? 'Active' : 'Inactive'}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      toggleMutation.mutate({
+                        type,
+                        id: item.id,
+                        active: item.active === false,
+                      })
+                    }
+                    className="h-7 text-xs text-muted"
+                  >
+                    {item.active !== false ? 'Deactivate' : 'Activate'}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <AppShell requiredPermission="catalogue:read">
+      <div className="space-y-4">
+        <PageHeader
+          title="Reference Data"
+          subtitle="Configure platform kitchen stations, allergen definitions, dietary labels, and portion sizes"
+        />
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="bg-slate-900 border border-slate-800">
-            <TabsTrigger value="stations" className="text-xs">
-              Kitchen Stations ({stations?.length || 0})
+          <TabsList>
+            <TabsTrigger value="stations">
+              Kitchen stations ({stations?.length || 0})
             </TabsTrigger>
-            <TabsTrigger value="allergens" className="text-xs">
+            <TabsTrigger value="allergens">
               Allergens ({allergens?.length || 0})
             </TabsTrigger>
-            <TabsTrigger value="tags" className="text-xs">
-              Dietary Tags ({dietaryTags?.length || 0})
+            <TabsTrigger value="tags">
+              Dietary tags ({dietaryTags?.length || 0})
             </TabsTrigger>
-            <TabsTrigger value="portions" className="text-xs">
-              Portion Sizes ({portionSizes?.length || 0})
+            <TabsTrigger value="portions">
+              Portion sizes ({portionSizes?.length || 0})
             </TabsTrigger>
           </TabsList>
 
-          {/* TAB 1: Kitchen Stations */}
-          <TabsContent value="stations" className="space-y-4">
-            <Card className="p-5 bg-slate-900/60 border-slate-800 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-sm text-white flex items-center gap-1.5">
-                    <ChefHat className="w-4 h-4 text-emerald-400" /> Kitchen Stations
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Prep routing areas in the commercial kitchen (e.g. Grill, Salads, Packing, Curries)
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setModalType('station');
-                    setName('');
-                    setSortOrder(stations?.length ? stations.length + 1 : 1);
-                    setModalOpen(true);
-                  }}
-                  className="text-xs"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Station
-                </Button>
-              </div>
-
-              <div className="divide-y divide-slate-800 border border-slate-800 rounded-lg overflow-hidden">
-                {stations?.map((st) => (
-                  <div key={st.id} className="p-3 bg-slate-950/60 flex items-center justify-between text-xs">
-                    <div>
-                      <span className="font-semibold text-white">{st.name}</span>
-                      <span className="text-[11px] text-slate-500 ml-2">Order: #{st.sortOrder}</span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant={st.active ? 'secondary' : 'outline'}
-                      onClick={() =>
-                        toggleMutation.mutate({ type: 'station', id: st.id, active: !st.active })
-                      }
-                      className="h-7 text-[11px]"
-                    >
-                      {st.active ? 'Active' : 'Inactive'}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </Card>
+          <TabsContent value="stations">
+            {renderList(
+              stations,
+              sLoading,
+              'station',
+              'Kitchen stations',
+              'Prep routing areas in the commercial kitchen (e.g. Hot Line, Cold Prep, Bakery)',
+              true
+            )}
           </TabsContent>
 
-          {/* TAB 2: Allergens */}
-          <TabsContent value="allergens" className="space-y-4">
-            <Card className="p-5 bg-slate-900/60 border-slate-800 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-sm text-white flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-400" /> Standard Allergens
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Allergen tags matched against customer preferences during order placement
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setModalType('allergen');
-                    setName('');
-                    setModalOpen(true);
-                  }}
-                  className="text-xs"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Allergen
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {allergens?.map((a) => (
-                  <div
-                    key={a.id}
-                    className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between text-xs"
-                  >
-                    <span className="font-semibold text-slate-200">{a.name}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() =>
-                        toggleMutation.mutate({ type: 'allergen', id: a.id, active: !a.active })
-                      }
-                      className="h-6 text-[10px]"
-                    >
-                      {a.active ? 'Active' : 'Disabled'}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </Card>
+          <TabsContent value="allergens">
+            {renderList(
+              allergens,
+              aLoading,
+              'allergen',
+              'Allergen definitions',
+              'Regulatory allergen warnings tracked across dishes and ingredients'
+            )}
           </TabsContent>
 
-          {/* TAB 3: Dietary Tags */}
-          <TabsContent value="tags" className="space-y-4">
-            <Card className="p-5 bg-slate-900/60 border-slate-800 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-sm text-white flex items-center gap-1.5">
-                    <Tag className="w-4 h-4 text-emerald-400" /> Dietary Preferences
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Dietary tags (e.g. Vegan, Jain, Gluten-Free, Halal, High-Protein)
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setModalType('tag');
-                    setName('');
-                    setModalOpen(true);
-                  }}
-                  className="text-xs"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Tag
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {dietaryTags?.map((t) => (
-                  <div
-                    key={t.id}
-                    className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between text-xs"
-                  >
-                    <span className="font-semibold text-slate-200">{t.name}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() =>
-                        toggleMutation.mutate({ type: 'tag', id: t.id, active: !t.active })
-                      }
-                      className="h-6 text-[10px]"
-                    >
-                      {t.active ? 'Active' : 'Disabled'}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </Card>
+          <TabsContent value="tags">
+            {renderList(
+              dietaryTags,
+              tLoading,
+              'tag',
+              'Dietary tags & preferences',
+              'Special dietary and lifestyle flags (e.g. Vegan, Halal, Gluten-Free)'
+            )}
           </TabsContent>
 
-          {/* TAB 4: Portion Sizes */}
-          <TabsContent value="portions" className="space-y-4">
-            <Card className="p-5 bg-slate-900/60 border-slate-800 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-sm text-white flex items-center gap-1.5">
-                    <Maximize2 className="w-4 h-4 text-sky-400" /> Portion Sizes
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Sizes for dishes and option groups (e.g. Regular, Large, Double Protein)
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setModalType('portion');
-                    setName('');
-                    setSortOrder(portionSizes?.length ? portionSizes.length + 1 : 1);
-                    setModalOpen(true);
-                  }}
-                  className="text-xs"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Portion Size
-                </Button>
-              </div>
-
-              <div className="divide-y divide-slate-800 border border-slate-800 rounded-lg overflow-hidden">
-                {portionSizes?.map((p) => (
-                  <div key={p.id} className="p-3 bg-slate-950/60 flex items-center justify-between text-xs">
-                    <div>
-                      <span className="font-semibold text-white">{p.name}</span>
-                      <span className="text-[11px] text-slate-500 ml-2">Order: #{p.sortOrder}</span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant={p.active ? 'secondary' : 'outline'}
-                      onClick={() =>
-                        toggleMutation.mutate({ type: 'portion', id: p.id, active: !p.active })
-                      }
-                      className="h-7 text-[11px]"
-                    >
-                      {p.active ? 'Active' : 'Inactive'}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </Card>
+          <TabsContent value="portions">
+            {renderList(
+              portionSizes,
+              pLoading,
+              'portion',
+              'Portion sizes',
+              'Standard serving size multipliers and naming',
+              true
+            )}
           </TabsContent>
         </Tabs>
 
-        {/* Add Entry Modal */}
+        {/* Modal */}
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle className="capitalize">Add {modalType}</DialogTitle>
+              <DialogTitle>
+                Add{' '}
+                {modalType === 'station'
+                  ? 'kitchen station'
+                  : modalType === 'allergen'
+                  ? 'allergen'
+                  : modalType === 'tag'
+                  ? 'dietary tag'
+                  : 'portion size'}
+              </DialogTitle>
             </DialogHeader>
 
             <div className="space-y-3 py-2 text-xs">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Name *</label>
-                <input
-                  type="text"
+                <label className="text-xs font-medium text-text block mb-1">Name *</label>
+                <Input
                   required
-                  placeholder={`e.g. ${
-                    modalType === 'station'
-                      ? 'Grill & Roast'
-                      : modalType === 'allergen'
-                      ? 'Shellfish'
-                      : modalType === 'tag'
-                      ? 'High-Protein'
-                      : 'Extra Large'
-                  }`}
+                  placeholder="e.g. Bakery / Dairy Free / Large"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
 
               {(modalType === 'station' || modalType === 'portion') && (
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Display Sort Order
-                  </label>
-                  <input
+                  <label className="text-xs font-medium text-text block mb-1">Sort order</label>
+                  <Input
                     type="number"
                     value={sortOrder}
                     onChange={(e) => setSortOrder(parseInt(e.target.value, 10) || 0)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                   />
                 </div>
               )}
@@ -398,7 +307,7 @@ export default function ReferenceDataPage() {
                 }
                 loading={createMutation.isPending}
               >
-                Add Entry
+                Add entry
               </Button>
             </DialogFooter>
           </DialogContent>

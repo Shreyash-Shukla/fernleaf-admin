@@ -3,12 +3,16 @@ import { cn } from '@/lib/utils';
 
 const Table = React.forwardRef<
   HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLTableElement> & { compact?: boolean }
+>(({ className, compact, ...props }, ref) => (
   <div className="relative w-full overflow-auto">
     <table
       ref={ref}
-      className={cn('w-full caption-bottom text-sm', className)}
+      className={cn(
+        'w-full caption-bottom text-[13px] border-collapse',
+        compact && '[&_tr]:h-[32px]',
+        className
+      )}
       {...props}
     />
   </div>
@@ -21,7 +25,10 @@ const TableHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <thead
     ref={ref}
-    className={cn('[&_tr]:border-b border-slate-800 bg-slate-900/60', className)}
+    className={cn(
+      'bg-[var(--bg-raised)] border-b border-[var(--border)] sticky top-0 z-10 select-none',
+      className
+    )}
     {...props}
   />
 ));
@@ -33,7 +40,7 @@ const TableBody = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <tbody
     ref={ref}
-    className={cn('[&_tr:last-child]:border-0', className)}
+    className={cn('[&_tr:last-child]:border-0 divide-y divide-[var(--border)]', className)}
     {...props}
   />
 ));
@@ -46,7 +53,7 @@ const TableFooter = React.forwardRef<
   <tfoot
     ref={ref}
     className={cn(
-      'border-t border-slate-800 bg-slate-900/50 font-medium [&>tr]:last:border-b-0',
+      'border-t border-[var(--border)] bg-[var(--bg-raised)] font-medium [&>tr]:last:border-b-0 text-[12px] text-[var(--text-muted)]',
       className
     )}
     {...props}
@@ -56,12 +63,13 @@ TableFooter.displayName = 'TableFooter';
 
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
-  React.HTMLAttributes<HTMLTableRowElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLTableRowElement> & { compact?: boolean }
+>(({ className, compact, ...props }, ref) => (
   <tr
     ref={ref}
     className={cn(
-      'border-b border-slate-800/80 transition-colors hover:bg-slate-800/40 data-[state=selected]:bg-slate-800',
+      'border-b border-[var(--border)] transition-colors duration-120 ease-out hover:bg-[var(--bg-raised)] data-[state=selected]:bg-[var(--brand-soft)] data-[state=selected]:border-l-2 data-[state=selected]:border-l-[var(--brand-solid)]',
+      compact ? 'h-[32px]' : 'h-[40px]',
       className
     )}
     {...props}
@@ -71,12 +79,13 @@ TableRow.displayName = 'TableRow';
 
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
-  React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
+  React.ThHTMLAttributes<HTMLTableCellElement> & { alignRight?: boolean }
+>(({ className, alignRight, ...props }, ref) => (
   <th
     ref={ref}
     className={cn(
-      'h-11 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0',
+      'h-[36px] px-3 py-1.5 align-middle text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--text-muted)] [&:has([role=checkbox])]:pr-0 select-none whitespace-nowrap',
+      alignRight ? 'text-right' : 'text-left',
       className
     )}
     {...props}
@@ -86,11 +95,16 @@ TableHead.displayName = 'TableHead';
 
 const TableCell = React.forwardRef<
   HTMLTableCellElement,
-  React.TdHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
+  React.TdHTMLAttributes<HTMLTableCellElement> & { alignRight?: boolean; mono?: boolean }
+>(({ className, alignRight, mono, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn('p-4 align-middle [&:has([role=checkbox])]:pr-0 text-slate-200', className)}
+    className={cn(
+      'px-3 py-2 align-middle text-[13px] leading-[20px] text-[var(--text)] [&:has([role=checkbox])]:pr-0 whitespace-nowrap',
+      alignRight && 'text-right tabular-nums',
+      mono && 'font-mono text-[12px] text-[var(--text-muted)]',
+      className
+    )}
     {...props}
   />
 ));
@@ -102,7 +116,7 @@ const TableCaption = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <caption
     ref={ref}
-    className={cn('mt-4 text-sm text-slate-400', className)}
+    className={cn('mt-4 text-[12px] text-[var(--text-muted)]', className)}
     {...props}
   />
 ));

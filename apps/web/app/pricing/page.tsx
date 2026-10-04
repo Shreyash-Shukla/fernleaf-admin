@@ -2,24 +2,31 @@
 
 import React, { useState } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
+import { PageHeader } from '@/components/shell/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchApi } from '@/lib/api';
 import { formatCents } from '@/lib/utils';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Chip } from '@/components/ui/chip';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
 import { toast } from 'sonner';
 import {
-  BadgePercent,
-  PlusCircle,
+  Plus,
   Edit,
   Save,
-  AlertTriangle,
-  CheckCircle2,
   Search,
-  Filter,
-  Layers,
 } from 'lucide-react';
 
 export default function PricingPage() {
@@ -79,7 +86,7 @@ export default function PricingPage() {
         body: JSON.stringify(updates),
       }),
     onSuccess: () => {
-      toast.success('Price overrides saved to tier!');
+      toast.success('Price overrides saved to tier');
       setLocalOverrides({});
       queryClient.invalidateQueries({ queryKey: ['pricing', 'grid'] });
     },
@@ -134,37 +141,30 @@ export default function PricingPage() {
 
   return (
     <AppShell requiredPermission="pricing:read">
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <BadgePercent className="w-6 h-6 text-emerald-400" />
-              <span>Pricing Tiers & Grid Matrix</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Formulas round up to 5¢. Explicit overrides take precedence. Dishes without prices are hidden.
-            </p>
-          </div>
+        <PageHeader
+          title="Pricing Tiers & Grid Matrix"
+          subtitle="Formulas round up to 5¢. Explicit overrides take precedence. Dishes without prices are hidden."
+          actions={
+            <Button
+              size="sm"
+              onClick={() => {
+                resetTierForm();
+                setTierModalOpen(true);
+              }}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Add price tier
+            </Button>
+          }
+        />
 
-          <Button
-            size="sm"
-            onClick={() => {
-              resetTierForm();
-              setTierModalOpen(true);
-            }}
-            className="text-xs"
-          >
-            <PlusCircle className="w-4 h-4 mr-1.5" />
-            Add Price Tier
-          </Button>
-        </div>
-
-        {/* Tiers List Carousel / Cards */}
+        {/* Tiers Cards Strip */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {tiers?.map((t) => {
             const isSelected = t.id === selectedTierId;
-            let derivationLabel = 'Manual / Override Only';
+            let derivationLabel = 'Manual / Override only';
             if (t.derivation === 'COST_FACTOR') {
               derivationLabel = `Cost × ${(t.factorBps / 10000).toFixed(2)}`;
             } else if (t.derivation === 'TIER_FACTOR') {
@@ -174,22 +174,20 @@ export default function PricingPage() {
             }
 
             return (
-              <Card
+              <div
                 key={t.id}
                 onClick={() => setSelectedTierId(t.id)}
-                className={`p-4 cursor-pointer transition-all ${
+                className={`p-4 rounded-lg border cursor-pointer transition-colors ${
                   isSelected
-                    ? 'bg-slate-900 border-emerald-500 shadow-lg shadow-emerald-950/20'
-                    : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
+                    ? 'bg-brand-soft border-brand-solid'
+                    : 'bg-surface border-border hover:bg-raised'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                  <div className="font-semibold text-sm text-text flex items-center gap-1.5">
                     <span>{t.name}</span>
                     {t.isDefault && (
-                      <Badge variant="default" className="text-[9px] py-0">
-                        Default
-                      </Badge>
+                      <Chip>Default</Chip>
                     )}
                   </div>
                   <Button
@@ -199,76 +197,55 @@ export default function PricingPage() {
                       e.stopPropagation();
                       openEditTier(t);
                     }}
-                    className="h-7 text-xs px-2 text-slate-400 hover:text-white"
+                    className="h-7 text-xs px-2 text-muted"
                   >
-                    <Edit className="w-3 h-3" />
+                    <Edit className="w-3.5 h-3.5" />
                   </Button>
                 </div>
 
-                <div className="text-xs text-emerald-400 font-mono mt-2">
+                <div className="text-xs text-muted font-mono mt-2 tabular-nums">
                   Formula: {derivationLabel}
                 </div>
-              </Card>
+              </div>
             );
           })}
         </div>
 
         {/* Tier Grid Matrix Editor */}
-        <Card className="border-slate-800 bg-slate-900/40 p-5 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-800">
+        <div className="bg-surface border border-border rounded-lg overflow-hidden space-y-3 p-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-border">
             <div>
-              <h3 className="font-bold text-base text-white flex items-center gap-2">
-                <span>{selectedTier?.name} Price Matrix</span>
-                <Badge variant="outline" className="text-[10px]">
-                  {gridKind === 'dish' ? 'Dishes' : 'Options'}
-                </Badge>
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Spot unpriced dishes and configure custom price overrides
-              </p>
+              <div className="font-semibold text-sm text-text flex items-center gap-2">
+                <span>{selectedTier?.name || 'Tier'} price matrix</span>
+                <Chip>{gridKind === 'dish' ? 'Dishes' : 'Options'}</Chip>
+              </div>
+              <div className="text-xs text-muted mt-0.5">
+                Spot unpriced items and configure custom price overrides
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Kind Toggle */}
-              <div className="flex rounded-lg border border-slate-700 bg-slate-950 p-0.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGridKind('dish');
-                    setLocalOverrides({});
-                  }}
-                  className={`px-3 py-1 rounded-md transition-colors ${
-                    gridKind === 'dish' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400'
-                  }`}
-                >
-                  Dishes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGridKind('option');
-                    setLocalOverrides({});
-                  }}
-                  className={`px-3 py-1 rounded-md transition-colors ${
-                    gridKind === 'option' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400'
-                  }`}
-                >
-                  Options
-                </button>
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <SegmentedControl
+                value={gridKind}
+                onChange={(val) => {
+                  setGridKind(val as any);
+                  setLocalOverrides({});
+                }}
+                options={[
+                  { value: 'dish', label: 'Dishes' },
+                  { value: 'option', label: 'Options' },
+                ]}
+              />
 
-              {/* Missing Only Toggle */}
               <Button
-                variant={missingOnly ? 'destructive' : 'outline'}
+                variant={missingOnly ? 'destructive' : 'secondary'}
                 size="sm"
                 onClick={() => setMissingOnly(!missingOnly)}
-                className="text-xs h-8"
+                className="h-7 text-xs"
               >
-                <AlertTriangle className="w-3.5 h-3.5 mr-1" />
-                Missing Only
+                Missing only
               </Button>
 
-              {/* Save All Pending Changes */}
               {Object.keys(localOverrides).length > 0 && (
                 <Button
                   size="sm"
@@ -284,46 +261,48 @@ export default function PricingPage() {
                     });
                   }}
                   loading={saveGridMutation.isPending}
-                  className="text-xs bg-emerald-600 hover:bg-emerald-500 font-bold"
                 >
                   <Save className="w-3.5 h-3.5 mr-1" />
-                  Save Changes ({Object.keys(localOverrides).length})
+                  Save overrides ({Object.keys(localOverrides).length})
                 </Button>
               )}
             </div>
           </div>
 
           {/* Search bar inside grid */}
-          <div className="max-w-xs">
-            <input
-              type="text"
-              placeholder="Search in grid..."
-              value={gridSearch}
-              onChange={(e) => setGridSearch(e.target.value)}
-              className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200"
-            />
+          <div className="w-64">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                type="text"
+                placeholder="Search in grid…"
+                value={gridSearch}
+                onChange={(e) => setGridSearch(e.target.value)}
+                className="w-full h-8 pl-8 pr-2.5 bg-app border border-border rounded-md text-xs text-text placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-brand-solid"
+              />
+            </div>
           </div>
 
           {/* Grid Table */}
-          <div className="overflow-x-auto border border-slate-800 rounded-xl">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[11px]">
-                <tr>
-                  <th className="py-3 px-4">Item Name</th>
-                  <th className="py-3 px-4">Base Cost</th>
-                  <th className="py-3 px-4">Derived Price</th>
-                  <th className="py-3 px-4">Explicit Override</th>
-                  <th className="py-3 px-4">Effective Price</th>
-                  <th className="py-3 px-4">Orderable Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
+          <div className="border border-border rounded-md overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item name</TableHead>
+                  <TableHead className="w-28 text-right">Base cost</TableHead>
+                  <TableHead className="w-28 text-right">Derived price</TableHead>
+                  <TableHead className="w-36 text-right">Explicit override</TableHead>
+                  <TableHead className="w-28 text-right">Effective price</TableHead>
+                  <TableHead className="w-32">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {gridLoading ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-500">
-                      Computing resolved prices...
-                    </td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-12 text-center text-muted text-xs">
+                      Computing resolved prices…
+                    </TableCell>
+                  </TableRow>
                 ) : gridRows.length > 0 ? (
                   gridRows.map((row: any) => {
                     const currentOverride =
@@ -335,28 +314,23 @@ export default function PricingPage() {
                     const isMissing = effective === null || effective <= 0;
 
                     return (
-                      <tr
-                        key={row.id}
-                        className={`hover:bg-slate-850/50 ${
-                          isMissing ? 'bg-rose-950/20' : ''
-                        }`}
-                      >
-                        <td className="py-3 px-4 font-semibold text-white">
-                          <div>{row.name}</div>
+                      <TableRow key={row.id}>
+                        <TableCell>
+                          <div className="font-medium text-text">{row.name}</div>
                           {row.sku && (
-                            <div className="text-[10px] font-mono text-slate-500">
+                            <div className="text-[11px] font-mono text-muted tabular-nums">
                               SKU: {row.sku}
                             </div>
                           )}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-slate-400">
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-muted tabular-nums">
                           {formatCents(row.costCents)}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-slate-300">
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-muted tabular-nums">
                           {row.derivedPriceCents !== null ? formatCents(row.derivedPriceCents) : '—'}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-1.5">
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
                             <input
                               type="number"
                               step={5}
@@ -366,7 +340,7 @@ export default function PricingPage() {
                                 const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
                                 setLocalOverrides({ ...localOverrides, [row.id]: val });
                               }}
-                              className="w-24 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-white"
+                              className="w-24 h-7 px-2 bg-app border border-border rounded text-xs text-text text-right font-mono tabular-nums focus:outline-none focus:ring-1 focus:ring-brand-solid"
                             />
                             {currentOverride !== null && (
                               <button
@@ -374,129 +348,126 @@ export default function PricingPage() {
                                   setLocalOverrides({ ...localOverrides, [row.id]: null })
                                 }
                                 title="Clear override"
-                                className="text-slate-500 hover:text-rose-400 text-xs px-1"
+                                className="text-muted hover:text-danger text-xs px-1"
                               >
                                 ×
                               </button>
                             )}
                           </div>
-                        </td>
-                        <td className="py-3 px-4 font-bold text-emerald-400 text-sm">
-                          {effective !== null ? formatCents(effective) : (
-                            <span className="text-rose-400 font-normal text-xs">No price</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          {isMissing ? (
-                            <Badge variant="destructive" className="text-[10px]">
-                              Hidden (Missing Price)
-                            </Badge>
-                          ) : (
-                            <Badge variant="default" className="text-[10px]">
-                              Orderable
-                            </Badge>
-                          )}
-                        </td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold font-mono text-text tabular-nums">
+                          {effective !== null ? formatCents(effective) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge
+                            status={isMissing ? 'Late' : 'Ready'}
+                            label={isMissing ? 'Unpriced' : 'Orderable'}
+                          />
+                        </TableCell>
+                      </TableRow>
                     );
                   })
                 ) : (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-12 text-center text-muted text-xs">
                       No items found in this grid view.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-        </Card>
+        </div>
 
-        {/* Tier Create/Edit Modal */}
+        {/* Tier Modal */}
         <Dialog open={tierModalOpen} onOpenChange={setTierModalOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>{editingTier ? 'Edit Price Tier' : 'Add Price Tier'}</DialogTitle>
+              <DialogTitle>{editingTier ? 'Edit price tier' : 'Add price tier'}</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4 py-2 text-xs">
+            <div className="space-y-3 py-2 text-xs">
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Tier Name *
-                </label>
-                <input
-                  type="text"
+                <label className="text-xs font-medium text-text block mb-1">Tier name *</label>
+                <Input
                   required
-                  placeholder="e.g. Enterprise Plus"
+                  placeholder="e.g. Corporate Standard / Startup Discount"
                   value={tierName}
                   onChange={(e) => setTierName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Price Derivation Strategy
-                </label>
+                <label className="text-xs font-medium text-text block mb-1">Price derivation formula</label>
                 <select
                   value={derivation}
                   onChange={(e) => setDerivation(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
+                  className="w-full h-8 px-2.5 bg-app border border-border rounded-md text-xs text-text focus:outline-none focus:ring-1 focus:ring-brand-solid"
                 >
-                  <option value="NONE">Manual Overrides Only (NONE)</option>
-                  <option value="COST_FACTOR">Derived from Dish Cost (COST_FACTOR)</option>
-                  <option value="TIER_FACTOR">Derived from Another Tier (TIER_FACTOR)</option>
+                  <option value="NONE">Manual overrides only (No formula)</option>
+                  <option value="COST_FACTOR">Multiplier on internal dish cost</option>
+                  <option value="TIER_FACTOR">Percentage markup on another tier</option>
                 </select>
               </div>
 
-              {derivation === 'TIER_FACTOR' && (
+              {derivation === 'COST_FACTOR' && (
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Base Tier
+                  <label className="text-xs font-medium text-text block mb-1">
+                    Cost multiplier (basis points: 10000 = 1.00x)
                   </label>
-                  <select
-                    value={baseTierId}
-                    onChange={(e) => setBaseTierId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
-                  >
-                    <option value="">Select base tier...</option>
-                    {tiers
-                      ?.filter((t) => t.id !== editingTier?.id)
-                      .map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              )}
-
-              {derivation !== 'NONE' && (
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Factor Basis Points (bps) — 10000 = 100%, 24000 = 240%, 11500 = +15%
-                  </label>
-                  <input
+                  <Input
                     type="number"
                     value={factorBps}
                     onChange={(e) => setFactorBps(parseInt(e.target.value, 10) || 10000)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded text-xs text-white"
                   />
-                  <span className="text-[10px] text-slate-400">
-                    Multiplier: ×{(factorBps / 10000).toFixed(2)} (rounds up to 5 cents)
+                  <span className="text-[11px] text-muted block mt-0.5 tabular-nums">
+                    Effective multiplier: {(factorBps / 10000).toFixed(2)}x
                   </span>
                 </div>
               )}
 
-              <div className="pt-2 border-t border-slate-800">
-                <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+              {derivation === 'TIER_FACTOR' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-text block mb-1">Base tier</label>
+                    <select
+                      value={baseTierId}
+                      onChange={(e) => setBaseTierId(e.target.value)}
+                      className="w-full h-8 px-2.5 bg-app border border-border rounded-md text-xs text-text focus:outline-none focus:ring-1 focus:ring-brand-solid"
+                    >
+                      <option value="">Select base tier…</option>
+                      {tiers
+                        ?.filter((t) => !editingTier || t.id !== editingTier.id)
+                        .map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-text block mb-1">Factor (10000 = +0%)</label>
+                    <Input
+                      type="number"
+                      value={factorBps}
+                      onChange={(e) => setFactorBps(parseInt(e.target.value, 10) || 10000)}
+                    />
+                    <span className="text-[11px] text-muted block mt-0.5 tabular-nums">
+                      Markup: {(((factorBps - 10000) / 100)).toFixed(0)}%
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-border">
+                <label className="flex items-center gap-2 text-text cursor-pointer">
                   <input
                     type="checkbox"
                     checked={isDefault}
                     onChange={(e) => setIsDefault(e.target.checked)}
-                    className="rounded bg-slate-950 border-slate-700 text-emerald-500"
+                    className="rounded bg-app border-border text-brand-solid focus:ring-brand-solid"
                   />
-                  <span>Make this the system default tier</span>
+                  <span>Default tier for newly created corporate clients</span>
                 </label>
               </div>
             </div>
@@ -512,13 +483,13 @@ export default function PricingPage() {
                     name: tierName,
                     isDefault,
                     derivation,
-                    baseTierId: derivation === 'TIER_FACTOR' ? baseTierId : null,
-                    factorBps: derivation !== 'NONE' ? factorBps : null,
+                    baseTierId: derivation === 'TIER_FACTOR' ? baseTierId : undefined,
+                    factorBps: derivation !== 'NONE' ? factorBps : undefined,
                   })
                 }
                 loading={saveTierMutation.isPending}
               >
-                {editingTier ? 'Update Tier' : 'Create Tier'}
+                {editingTier ? 'Save tier' : 'Create tier'}
               </Button>
             </DialogFooter>
           </DialogContent>
