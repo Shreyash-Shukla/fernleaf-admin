@@ -41,7 +41,12 @@ export default function DashboardPage() {
     timezone: string;
   }>({
     queryKey: ['meta'],
-    queryFn: () => fetchApi('/meta'),
+    queryFn: () =>
+      fetchApi('/meta').catch(() => ({
+        today: new Date().toISOString().slice(0, 10),
+        nowIso: new Date().toISOString(),
+        timezone: 'Asia/Kolkata',
+      })),
   });
 
   const today = meta?.today || new Date().toISOString().slice(0, 10);
@@ -52,8 +57,11 @@ export default function DashboardPage() {
     total: number;
   }>({
     queryKey: ['orders', 'today', today],
-    queryFn: () => fetchApi(`/orders?from=${today}&to=${today}&pageSize=100`),
-    enabled: !!meta,
+    queryFn: () =>
+      fetchApi(`/orders?from=${today}&to=${today}&pageSize=100`).catch(() => ({
+        orders: [],
+        total: 0,
+      })),
   });
 
   // 3. Orders next 7 days for pipeline value
@@ -69,48 +77,75 @@ export default function DashboardPage() {
     total: number;
   }>({
     queryKey: ['orders', 'pipeline', today, nextWeekDate],
-    queryFn: () => fetchApi(`/orders?from=${today}&to=${nextWeekDate}&pageSize=100`),
+    queryFn: () =>
+      fetchApi(`/orders?from=${today}&to=${nextWeekDate}&pageSize=100`).catch(() => ({
+        orders: [],
+        total: 0,
+      })),
     enabled: !!nextWeekDate,
   });
 
   // 4. Kitchen board for today
   const { data: kitchenData } = useQuery<any>({
     queryKey: ['kitchen', today],
-    queryFn: () => fetchApi(`/kitchen/board?date=${today}`),
-    enabled: !!meta,
+    queryFn: () =>
+      fetchApi(`/kitchen/board?date=${today}`).catch(() => ({
+        totalUnits: 0,
+        doneUnits: 0,
+        lateOrdersCount: 0,
+        atRiskOrdersCount: 0,
+        stations: [],
+        orders: [],
+        cookTotals: [],
+      })),
   });
 
   // 5. Billing unbilled summary
   const { data: unbilledData } = useQuery<any>({
     queryKey: ['billing', 'unbilled'],
-    queryFn: () => fetchApi('/billing/unbilled'),
+    queryFn: () =>
+      fetchApi('/billing/unbilled').catch(() => ({
+        summary: { totalUnbilledCents: 0 },
+        companies: [],
+      })),
   });
 
   // 6. Settings for cut-off info
   const { data: settings } = useQuery<any>({
     queryKey: ['settings'],
-    queryFn: () => fetchApi('/settings'),
+    queryFn: () =>
+      fetchApi('/settings').catch(() => ({
+        cutoffDays: 2,
+        cutoffTime: '16:00',
+        cutoffHoldDates: [],
+      })),
   });
 
   // 7. Live Next Cut-off Window
   const { data: nextCutoff } = useQuery<any>({
     queryKey: ['cutoff', 'next'],
-    queryFn: () => fetchApi('/cutoff/next'),
+    queryFn: () => fetchApi('/cutoff/next').catch(() => null),
     refetchInterval: 30000,
   });
 
   // 8. Dispatch board for today (for role switcher)
   const { data: dispatchData } = useQuery<any>({
     queryKey: ['dispatch', 'board', today],
-    queryFn: () => fetchApi(`/dispatch/board?date=${today}`),
-    enabled: !!meta,
+    queryFn: () =>
+      fetchApi(`/dispatch/board?date=${today}`).catch(() => ({
+        drops: [],
+        summary: { totalDrops: 0, stageCounts: {} },
+      })),
   });
 
   // 9. Driver drops for today (driver@test.com preview)
   const { data: driverData } = useQuery<any>({
     queryKey: ['driver', 'drops', today],
-    queryFn: () => fetchApi(`/driver/drops?date=${today}`),
-    enabled: !!meta,
+    queryFn: () =>
+      fetchApi(`/driver/drops?date=${today}`).catch(() => ({
+        drops: [],
+        summary: { totalDrops: 0, deliveredDrops: 0, remainingDrops: 0 },
+      })),
   });
 
   // Dynamic live countdown string for next cut-off

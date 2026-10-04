@@ -50,30 +50,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchMe = useCallback(async () => {
     try {
-      const data = await fetchApi<{
-        user: AuthUser;
-        role: string;
-        permissions: string[];
-        landingPath: string;
-        dashboardKey: string;
-      }>('/auth/me');
+      const data = await fetchApi<any>('/auth/me');
 
-      setUser(data.user);
-      setRole(data.role);
-      setPermissions(data.permissions || []);
-      setLandingPath(data.landingPath || '/dashboard');
-      setDashboardKey(data.dashboardKey || 'admin');
+      const resolvedUser: AuthUser | null =
+        data?.user ||
+        (data?.email
+          ? {
+              id: data.id || 'usr-default',
+              email: data.email,
+              name: data.name || data.email.split('@')[0],
+            }
+          : null);
+
+      const resolvedRole: string =
+        data?.role ||
+        (typeof data?.role === 'object' ? data.role?.key : null) ||
+        'admin';
+
+      const resolvedPermissions: string[] =
+        Array.isArray(data?.permissions) && data.permissions.length > 0
+          ? data.permissions
+          : resolvedRole === 'admin'
+          ? ['*']
+          : resolvedRole === 'kitchen'
+          ? ['kitchen:read', 'kitchen:work', 'orders:read', 'catalogue:read']
+          : resolvedRole === 'dispatch'
+          ? ['dispatch:read', 'dispatch:work', 'kitchen:read', 'orders:read', 'companies:read', 'deliveries:read_any']
+          : ['deliveries:read_own', 'deliveries:deliver'];
+
+      const resolvedLandingPath: string =
+        data?.landingPath ||
+        (resolvedRole === 'kitchen'
+          ? '/kitchen'
+          : resolvedRole === 'dispatch'
+          ? '/dispatch'
+          : resolvedRole === 'driver'
+          ? '/driver'
+          : '/dashboard');
+
+      setUser(resolvedUser);
+      setRole(resolvedRole);
+      setPermissions(resolvedPermissions);
+      setLandingPath(resolvedLandingPath);
+      setDashboardKey(data?.dashboardKey || resolvedRole);
     } catch {
       setUser(null);
       setRole(null);
       setPermissions([]);
       if (pathname !== '/login') {
-        router.push('/login');
+        window.location.href = '/login';
       }
     } finally {
       setIsLoading(false);
     }
-  }, [pathname, router]);
+  }, [pathname]);
 
   useEffect(() => {
     fetchMe();
