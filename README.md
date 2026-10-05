@@ -56,7 +56,7 @@ The system automatically seeds four distinct accounts on boot with exact permiss
    ```env
    DATABASE_URL="postgresql://user:password@ep-pooler.region.neon.tech/neondb?sslmode=require"
    DIRECT_URL="postgresql://user:password@ep-direct.region.neon.tech/neondb?sslmode=require"
-   JWT_SECRET="REDACTED_JWT_SECRET"
+   JWT_SECRET="your-jwt-secret-placeholder"
    PORT=3001
    API_ORIGIN="http://localhost:3001"
    ```

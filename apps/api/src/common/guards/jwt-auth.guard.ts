@@ -12,8 +12,15 @@ import { ERRORS } from '@repo/shared';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  private readonly jwtSecret =
-    process.env.JWT_SECRET!;
+  private get jwtSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret.trim() === '') {
+      throw new Error(
+        'JWT_SECRET environment variable is missing or empty. Application cannot operate securely.',
+      );
+    }
+    return secret;
+  }
 
   constructor(
     private readonly reflector: Reflector,
@@ -40,9 +47,11 @@ export class JwtAuthGuard implements CanActivate {
       );
     }
 
+    const secret = this.jwtSecret;
+
     try {
       const payload = this.jwtService.verify(token, {
-        secret: this.jwtSecret,
+        secret,
       });
 
       const user = await this.prisma.user.findUnique({

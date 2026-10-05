@@ -9,7 +9,18 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
+function validateStartupEnvironment() {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret || jwtSecret.trim() === '') {
+    console.error(
+      'FATAL: JWT_SECRET environment variable is missing or empty. Application cannot start securely.',
+    );
+    process.exit(1);
+  }
+}
+
 async function bootstrap() {
+  validateStartupEnvironment();
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Set trust proxy so Secure cookies work behind reverse proxies like Render

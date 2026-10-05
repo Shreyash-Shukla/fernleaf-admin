@@ -1,11 +1,29 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
-export class AuthService {
-  private readonly jwtSecret = process.env.JWT_SECRET!;
+export class AuthService implements OnModuleInit {
+  private get jwtSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret.trim() === '') {
+      throw new Error(
+        'JWT_SECRET environment variable is missing or empty. Application cannot operate securely.',
+      );
+    }
+    return secret;
+  }
+
+  onModuleInit() {
+    // Enforce JWT_SECRET configuration on module initialization
+    this.jwtSecret;
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -60,9 +78,11 @@ export class AuthService {
       throw new UnauthorizedException('Missing authentication token');
     }
 
+    const secret = this.jwtSecret;
+
     try {
       const payload = this.jwtService.verify(token, {
-        secret: this.jwtSecret,
+        secret,
       });
 
       const user = await this.prisma.user.findUnique({

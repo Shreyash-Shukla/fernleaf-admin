@@ -31,6 +31,7 @@ describe('JwtAuthGuard', () => {
   let prisma: PrismaService;
 
   beforeEach(() => {
+    process.env.JWT_SECRET = 'test-jwt-secret-for-unit-tests-only';
     reflector = new Reflector();
     jwtService = new JwtService({});
     prisma = {
@@ -118,6 +119,18 @@ describe('JwtAuthGuard', () => {
     const context = createMockContext(req);
 
     await expect(guard.canActivate(context)).rejects.toThrow(DomainError);
+  });
+
+  it('throws error when JWT_SECRET environment variable is missing', async () => {
+    vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+    delete process.env.JWT_SECRET;
+
+    const req = { cookies: { token: 'some-token' } };
+    const context = createMockContext(req);
+
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      'JWT_SECRET environment variable is missing or empty',
+    );
   });
 });
 

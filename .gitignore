@@ -14,6 +14,12 @@ build/
 .env.*
 !.env.example
 
+# Authentication & Session artifacts
+cookies.txt
+*.cookie
+cookie*.txt
+*.cookies
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
